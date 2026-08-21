@@ -59,7 +59,7 @@ export function CourierDialog({ open, order, busy, onClose, onSelect }: CourierD
       )}
 
       {couriers.data && (
-        <ul className="max-h-72 overflow-y-auto">
+        <ul className="-mx-1 max-h-72 overflow-y-auto">
           {couriers.data.map((courier) => {
             const isCurrent = order.courier?.id === courier.id;
             const { disabled, hint } = availability(courier, isCurrent);
@@ -67,8 +67,8 @@ export function CourierDialog({ open, order, busy, onClose, onSelect }: CourierD
             return (
               <li key={courier.id}>
                 <label
-                  className={`flex items-center gap-3 rounded-md px-2 py-2 ${
-                    disabled ? 'opacity-55' : 'cursor-pointer hover:bg-slate-50'
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+                    disabled ? 'opacity-50' : 'cursor-pointer hover:bg-accent-soft'
                   }`}
                 >
                   <input
@@ -79,8 +79,8 @@ export function CourierDialog({ open, order, busy, onClose, onSelect }: CourierD
                     checked={selected === courier.id}
                     onChange={() => setSelected(courier.id)}
                   />
-                  <span className="flex-1 text-sm">{courier.name}</span>
-                  <span className="text-xs text-muted">{hint}</span>
+                  <span className="flex-1 text-sm font-medium text-ink">{courier.name}</span>
+                  <span className="tabular text-xs text-muted">{hint}</span>
                 </label>
               </li>
             );

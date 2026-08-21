@@ -1,4 +1,5 @@
 import { Button } from '@/components/Button';
+import { ArrowLeftIcon, ArrowRightIcon } from '@/components/icons';
 
 interface PaginationProps {
   page: number;
@@ -25,7 +26,7 @@ export function Pagination({
   return (
     <nav
       aria-label="Постраничная навигация"
-      className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-3 py-2"
+      className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface-muted px-3 py-2"
     >
       {/* Единой строкой, а не через интерполяцию по кускам: иначе текст
           разбивается на несколько узлов и становится нечитаемым для
@@ -38,7 +39,7 @@ export function Pagination({
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="rounded-md bg-surface px-2 py-1 text-sm ring-1 ring-line"
+            className="rounded-lg bg-surface px-2 py-1 text-sm ring-1 ring-line"
           >
             {PAGE_SIZES.map((size) => (
               <option key={size} value={size}>
@@ -48,14 +49,20 @@ export function Pagination({
           </select>
         </label>
 
-        <Button onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
+        <Button
+          size="sm"
+          icon={<ArrowLeftIcon />}
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+        >
           Назад
         </Button>
-        <span className="text-xs tabular-nums text-muted">
+        <span className="tabular text-xs text-muted">
           {`${page} / ${Math.max(totalPages, 1)}`}
         </span>
-        <Button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
+        <Button size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
           Вперёд
+          <ArrowRightIcon />
         </Button>
       </div>
     </nav>

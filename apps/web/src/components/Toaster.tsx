@@ -19,7 +19,7 @@ const ToastContext = createContext<ToastApi | null>(null);
 const STYLES: Record<ToastKind, string> = {
   success: 'bg-ok-soft text-ok ring-emerald-200',
   error: 'bg-danger-soft text-danger ring-red-200',
-  info: 'bg-accent-soft text-accent ring-blue-200',
+  info: 'bg-accent-soft text-accent-strong ring-blue-200',
 };
 
 const AUTO_DISMISS_MS = 5000;
@@ -51,12 +51,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 flex-col gap-2"
+        className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[min(20rem,calc(100vw-2rem))] flex-col gap-2"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto rounded-md px-4 py-3 text-sm shadow-lg ring-1 ring-inset ${STYLES[toast.kind]}`}
+            className={`pointer-events-auto rounded-xl px-4 py-3 text-sm font-medium shadow-raised ring-1 ring-inset ${STYLES[toast.kind]}`}
           >
             {toast.message}
           </div>

@@ -51,9 +51,10 @@ export function OrdersPage() {
   const filtered = hasActiveFilters(filters);
 
   return (
-    <div className="mx-auto flex max-w-[110rem] flex-col gap-4 p-6">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-xl font-semibold">Заказы</h1>
+    <div className="mx-auto flex max-w-[110rem] flex-col gap-4 px-4 py-5 sm:px-6">
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="text-lg font-semibold tracking-tight sm:text-xl">Заказы</h1>
+        <p className="text-sm text-muted">Просмотр и управление заказами ресторанов</p>
       </header>
 
       <FiltersPanel
@@ -63,10 +64,10 @@ export function OrdersPage() {
         total={orders.data?.total}
       />
 
-      <section className="relative overflow-hidden rounded-lg bg-surface ring-1 ring-line">
+      <section className="relative overflow-hidden rounded-xl bg-surface shadow-card ring-1 ring-line">
         <RefetchingBar active={orders.isFetching && !isInitialLoading} />
 
-        <div className="overflow-x-auto">
+        <div className="max-h-[calc(100vh-19rem)] overflow-auto">
           <OrdersTable items={items} filters={filters} onSort={sortBy}>
             {isInitialLoading ? <TableSkeleton columns={ORDERS_TABLE_COLUMNS} /> : undefined}
           </OrdersTable>
@@ -89,6 +90,7 @@ export function OrdersPage() {
                 ? 'Попробуйте изменить условия поиска: возможно, фильтры слишком узкие.'
                 : 'Как только появится первый заказ, он окажется в этом списке.'
             }
+            tone={filtered ? 'search' : 'neutral'}
             action={
               filtered ? (
                 <Button variant="secondary" onClick={() => applyFilters(resetFilters(filters))}>

@@ -1,6 +1,7 @@
 import { ORDER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from '@food/contracts';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
+import { FilterIcon, SearchIcon } from '@/components/icons';
 import { useCouriersQuery, useRestaurantsQuery } from '@/api/queries';
 import { hasActiveFilters, resetFilters, type OrderFilters } from './filters';
 
@@ -12,6 +13,10 @@ interface FiltersPanelProps {
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+const FIELD =
+  'rounded-lg bg-surface px-3 text-sm text-ink ring-1 ring-line transition-shadow outline-none focus:ring-2 focus:ring-accent';
+const LABEL = 'text-[11px] font-medium tracking-wide text-muted uppercase';
 
 export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanelProps) {
   const restaurants = useRestaurantsQuery();
@@ -39,28 +44,34 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
   }
 
   return (
-    <section aria-label="Фильтры" className="rounded-lg bg-surface p-4 ring-1 ring-line">
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="flex min-w-64 flex-1 flex-col gap-1">
-          <span className="text-xs font-medium text-muted">Поиск по адресу</span>
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Например: Лениский проспкт 12"
-            className="rounded-md px-3 py-1.5 text-sm ring-1 ring-line focus:ring-2 focus:ring-accent"
-          />
+    <section
+      aria-label="Фильтры"
+      className="rounded-xl bg-surface p-4 shadow-card ring-1 ring-line"
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(16rem,2fr)_repeat(2,minmax(9rem,1fr))_auto_auto]">
+        <label className="flex flex-col gap-1">
+          <span className={LABEL}>Поиск по адресу</span>
+          <span className="relative flex items-center">
+            <SearchIcon className="pointer-events-none absolute left-2.5 text-faint" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Например: Лениский проспкт 12"
+              className={`${FIELD} h-9 w-full pl-8`}
+            />
+          </span>
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-muted">Ресторан</span>
+          <span className={LABEL}>Ресторан</span>
           <select
             value={filters.restaurantId[0] ?? ''}
             onChange={(event) =>
               onChange({ restaurantId: event.target.value ? [event.target.value] : [] })
             }
             disabled={restaurants.isLoading}
-            className="min-w-44 rounded-md bg-surface px-3 py-1.5 text-sm ring-1 ring-line"
+            className={`${FIELD} h-9`}
           >
             <option value="">Все рестораны</option>
             {restaurants.data?.map((restaurant) => (
@@ -72,7 +83,7 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-muted">Курьер</span>
+          <span className={LABEL}>Курьер</span>
           <select
             value={filters.unassigned ? 'unassigned' : (filters.courierId[0] ?? '')}
             onChange={(event) => {
@@ -81,65 +92,75 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
               else onChange({ unassigned: false, courierId: value ? [value] : [] });
             }}
             disabled={couriers.isLoading}
-            className="min-w-44 rounded-md bg-surface px-3 py-1.5 text-sm ring-1 ring-line"
+            className={`${FIELD} h-9`}
           >
             <option value="">Любой курьер</option>
             <option value="unassigned">Без курьера</option>
             {couriers.data?.map((courier) => (
               <option key={courier.id} value={courier.id}>
-                {courier.name} ({courier.activeOrdersCount}/{courier.activeLimit})
+                {`${courier.name} (${courier.activeOrdersCount}/${courier.activeLimit})`}
               </option>
             ))}
           </select>
         </label>
 
-        <div className="flex items-end gap-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted">Сумма от</span>
+        <div className="flex flex-col gap-1">
+          <span className={LABEL}>Сумма, ₽</span>
+          <div className="flex items-center gap-1.5">
             <input
               type="number"
               min="0"
               value={filters.minAmount}
               onChange={(event) => onChange({ minAmount: event.target.value })}
-              className="w-24 rounded-md px-2 py-1.5 text-sm ring-1 ring-line"
+              aria-label="Сумма от"
+              placeholder="от"
+              className={`${FIELD} tabular h-9 w-20`}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted">до</span>
+            <span aria-hidden="true" className="text-faint">
+              —
+            </span>
             <input
               type="number"
               min="0"
               value={filters.maxAmount}
               onChange={(event) => onChange({ maxAmount: event.target.value })}
-              className="w-24 rounded-md px-2 py-1.5 text-sm ring-1 ring-line"
+              aria-label="Сумма до"
+              placeholder="до"
+              className={`${FIELD} tabular h-9 w-20`}
             />
-          </label>
+          </div>
         </div>
 
-        <div className="flex items-end gap-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted">Создан с</span>
+        <div className="flex flex-col gap-1">
+          <span className={LABEL}>Дата создания</span>
+          <div className="flex items-center gap-1.5">
             <input
               type="date"
               value={filters.createdFrom}
               onChange={(event) => onChange({ createdFrom: event.target.value })}
-              className="rounded-md px-2 py-1.5 text-sm ring-1 ring-line"
+              aria-label="Создан с"
+              className={`${FIELD} h-9`}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted">по</span>
+            <span aria-hidden="true" className="text-faint">
+              —
+            </span>
             <input
               type="date"
               value={filters.createdTo}
               onChange={(event) => onChange({ createdTo: event.target.value })}
-              className="rounded-md px-2 py-1.5 text-sm ring-1 ring-line"
+              aria-label="Создан по"
+              className={`${FIELD} h-9`}
             />
-          </label>
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted">Статус:</span>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
+        <span className="mr-1 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted uppercase">
+          <FilterIcon className="size-3.5" />
+          Статус
+        </span>
+
         {ORDER_STATUSES.map((status) => {
           const active = filters.status.includes(status);
           return (
@@ -148,10 +169,10 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
               type="button"
               aria-pressed={active}
               onClick={() => toggleStatus(status)}
-              className={`rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors ${
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 active
-                  ? 'bg-accent text-white ring-accent'
-                  : 'bg-surface text-muted ring-line hover:bg-slate-50'
+                  ? 'bg-accent text-white ring-1 ring-accent'
+                  : 'bg-surface text-ink-soft ring-1 ring-line hover:bg-surface-muted hover:ring-line-strong'
               }`}
             >
               {ORDER_STATUS_LABELS[status]}
@@ -162,11 +183,11 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
         <div className="ml-auto flex items-center gap-3">
           {total !== undefined && (
             <span className="text-xs text-muted" data-testid="orders-total">
-              Найдено: {total}
+              {`Найдено: ${total}`}
             </span>
           )}
           {hasActiveFilters(filters) && (
-            <Button variant="ghost" onClick={onReset}>
+            <Button variant="ghost" size="sm" onClick={onReset}>
               Сбросить фильтры
             </Button>
           )}

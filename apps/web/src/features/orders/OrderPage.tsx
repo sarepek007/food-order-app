@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router';
 import { useAuditQuery, useOrderMutation, useOrderQuery, type OrderMutationInput } from '@/api/queries';
 import { errorMessage, isApiError, isNetworkError, type ApiError } from '@/api/errors';
 import { Button } from '@/components/Button';
+import { ArrowLeftIcon, ArrowRightIcon, CancelIcon, CourierIcon, MinusIcon, SwapIcon } from '@/components/icons';
 import { StatusBadge } from '@/components/StatusBadge';
 import { CardSkeleton, EmptyState, ErrorState } from '@/components/states';
 import { useToast } from '@/components/Toaster';
@@ -80,8 +81,13 @@ export function OrderPage() {
 
   if (orderQuery.isLoading) {
     return (
-      <div className="mx-auto max-w-6xl p-6">
-        <CardSkeleton lines={8} />
+      <div className="mx-auto grid max-w-6xl gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-xl bg-surface p-5 shadow-card ring-1 ring-line">
+          <CardSkeleton lines={8} />
+        </div>
+        <div className="rounded-xl bg-surface p-5 shadow-card ring-1 ring-line">
+          <CardSkeleton lines={5} />
+        </div>
       </div>
     );
   }
@@ -117,21 +123,27 @@ export function OrderPage() {
   const busy = mutation.isPending;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-6">
-      <div>
-        <Link to="/orders" className="text-sm text-accent hover:underline">
-          ← Все заказы
-        </Link>
-      </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6">
+      <Link
+        to="/orders"
+        className="inline-flex w-fit items-center gap-1.5 text-sm text-muted transition-colors hover:text-accent"
+      >
+        <ArrowLeftIcon className="size-3.5" />
+        Все заказы
+      </Link>
 
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">{`Заказ №${order.publicNumber}`}</h1>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
+          {`Заказ №${order.publicNumber}`}
+        </h1>
         {/* Точка привязки для e2e: в журнале те же названия статусов,
             и без неё селектор становится неоднозначным. */}
         <span data-testid="order-status">
-          <StatusBadge status={order.status} />
+          <StatusBadge status={order.status} size="md" />
         </span>
-        <span className="text-xs text-muted">версия {order.version}</span>
+        <span className="tabular rounded-md bg-surface-muted px-2 py-0.5 text-xs text-muted ring-1 ring-line">
+          {`версия ${order.version}`}
+        </span>
       </header>
 
       {conflict && (
@@ -149,17 +161,25 @@ export function OrderPage() {
       )}
 
       {actionError && !actionError.isValidation && (
-        <div role="alert" className="rounded-lg bg-danger-soft p-4 text-sm ring-1 ring-red-200">
-          <p className="font-medium text-danger">{actionError.problem.title}</p>
-          <p className="mt-1 text-ink">{actionError.message}</p>
+        <div
+          role="alert"
+          className="flex gap-3 rounded-xl bg-danger-soft p-4 text-sm ring-1 ring-red-200"
+        >
+          <CancelIcon className="mt-0.5 size-5 shrink-0 text-danger" />
+          <div>
+            <p className="font-medium text-danger">{actionError.problem.title}</p>
+            <p className="mt-0.5 text-ink-soft">{actionError.message}</p>
+          </div>
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <section className="flex flex-col gap-4">
-          <div className="rounded-lg bg-surface p-5 ring-1 ring-line">
-            <h2 className="mb-3 text-sm font-semibold text-muted">Данные заказа</h2>
-            <dl className="grid grid-cols-[9rem_1fr] gap-y-2 text-sm">
+          <div className="rounded-xl bg-surface p-5 shadow-card ring-1 ring-line">
+            <h2 className="mb-4 text-[11px] font-semibold tracking-wide text-muted uppercase">
+              Данные заказа
+            </h2>
+            <dl className="grid grid-cols-1 gap-y-2.5 text-sm sm:grid-cols-[9.5rem_1fr] sm:gap-y-2">
               <dt className="text-muted">Клиент</dt>
               <dd>
                 {order.customerName}
@@ -181,7 +201,7 @@ export function OrderPage() {
               <dd>{order.deliveryAddress}</dd>
 
               <dt className="text-muted">Сумма</dt>
-              <dd className="tabular-nums">{formatMoney(order.totalAmount, order.currency)}</dd>
+              <dd className="tabular font-medium">{formatMoney(order.totalAmount, order.currency)}</dd>
 
               <dt className="text-muted">Создан</dt>
               <dd title={formatDateTime(order.createdAt)}>{formatDateTime(order.createdAt)}</dd>
@@ -198,8 +218,10 @@ export function OrderPage() {
             </dl>
           </div>
 
-          <div className="rounded-lg bg-surface p-5 ring-1 ring-line">
-            <h2 className="mb-3 text-sm font-semibold text-muted">Действия</h2>
+          <div className="rounded-xl bg-surface p-5 shadow-card ring-1 ring-line">
+            <h2 className="mb-4 text-[11px] font-semibold tracking-wide text-muted uppercase">
+              Действия
+            </h2>
 
             <div className="flex flex-wrap gap-2">
               {/* Кнопки строятся по графу переходов из @food/contracts:
@@ -209,21 +231,26 @@ export function OrderPage() {
                   key={status}
                   variant="primary"
                   loading={busy}
+                  icon={<ArrowRightIcon />}
                   onClick={() => run({ kind: 'status', status })}
                 >
-                  Перевести в «{ORDER_STATUS_LABELS[status]}»
+                  {`Перевести в «${ORDER_STATUS_LABELS[status]}»`}
                 </Button>
               ))}
 
               {!order.allowedTransitions.length && (
-                <p className="text-sm text-muted">
+                <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-muted">
                   Заказ в терминальном статусе — изменения больше недоступны.
                 </p>
               )}
 
               {order.status !== 'delivered' && order.status !== 'cancelled' && (
                 <>
-                  <Button onClick={() => setCourierDialog(true)} disabled={busy}>
+                  <Button
+                    onClick={() => setCourierDialog(true)}
+                    disabled={busy}
+                    icon={order.courier ? <SwapIcon /> : <CourierIcon />}
+                  >
                     {order.courier ? 'Сменить курьера' : 'Назначить курьера'}
                   </Button>
 
@@ -231,6 +258,7 @@ export function OrderPage() {
                     <Button
                       onClick={() => run({ kind: 'unassign-courier' })}
                       loading={busy}
+                      icon={<MinusIcon />}
                     >
                       Снять курьера
                     </Button>
@@ -239,7 +267,12 @@ export function OrderPage() {
               )}
 
               {order.cancellable && (
-                <Button variant="danger" onClick={() => setCancelDialog(true)} disabled={busy}>
+                <Button
+                  variant="danger"
+                  onClick={() => setCancelDialog(true)}
+                  disabled={busy}
+                  icon={<CancelIcon />}
+                >
                   Отменить заказ
                 </Button>
               )}
@@ -247,8 +280,10 @@ export function OrderPage() {
           </div>
         </section>
 
-        <section className="rounded-lg bg-surface p-5 ring-1 ring-line">
-          <h2 className="mb-4 text-sm font-semibold text-muted">История изменений</h2>
+        <section className="rounded-xl bg-surface p-5 shadow-card ring-1 ring-line">
+          <h2 className="mb-4 text-[11px] font-semibold tracking-wide text-muted uppercase">
+            История изменений
+          </h2>
 
           {auditQuery.isLoading && <CardSkeleton lines={4} />}
 

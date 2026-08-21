@@ -43,14 +43,18 @@ export function Modal({ open, title, description, onClose, children, footer }: M
         event.preventDefault();
         onClose();
       }}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg bg-surface p-0 text-ink shadow-xl backdrop:bg-slate-900/45"
+      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-xl bg-surface p-0 text-ink shadow-raised"
     >
       <div className="border-b border-line px-5 py-4">
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
       {children && <div className="px-5 py-4">{children}</div>}
-      {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+      {footer && (
+        <div className="flex justify-end gap-2 border-t border-line bg-surface-muted px-5 py-3">
+          {footer}
+        </div>
+      )}
     </dialog>
   );
 }
