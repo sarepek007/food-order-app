@@ -38,6 +38,7 @@ docs                спецификация, план, ADR
 pnpm install
 pnpm db:up                        # Postgres в Docker
 pnpm --filter @food/api migrate   # применить миграции
+pnpm --filter @food/api seed      # демонстрационные данные
 pnpm test                         # тесты всех пакетов
 ```
 
@@ -66,6 +67,7 @@ pnpm --filter @food/api dev
 | `pnpm db:up` / `pnpm db:down` | поднять/остановить Postgres |
 | `pnpm --filter @food/api migrate` | применить миграции |
 | `pnpm --filter @food/api dev` | запустить API на :3000 |
+| `pnpm --filter @food/api seed` | загрузить демонстрационные данные |
 
 ## Состояние работ
 
@@ -80,4 +82,7 @@ pnpm --filter @food/api dev
 * **M4** — HTTP-слой: REST API на Fastify, `problem+json` по RFC 9457,
   оптимистическая блокировка через `ETag`/`If-Match`, OpenAPI на `/docs`.
 
-Итого 275 тестов. Прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).
+* **M5** — воспроизводимый seed: 20 ресторанов, 20 курьеров, 200 заказов
+  с согласованным журналом изменений.
+
+Итого 330 тестов. Прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).
