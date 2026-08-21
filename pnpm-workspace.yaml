@@ -1,0 +1,7 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+
+# pnpm 11: явное разрешение postinstall-скриптов вместо молчаливого выполнения
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+.env
+.env.local
+!.env.example
+
+.idea/
+.vscode/
+.DS_Store
+
+playwright-report/
+test-results/
