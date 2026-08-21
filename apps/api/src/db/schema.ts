@@ -86,6 +86,9 @@ export const orderAuditLog = pgTable(
     oldCourierId: uuid('old_courier_id').references(() => couriers.id),
     newCourierId: uuid('new_courier_id').references(() => couriers.id),
     comment: text('comment'),
+    // Версия заказа после события: по ней сервис объясняет, что изменилось
+    // с момента, когда клиент прочитал заказ (см. миграцию 0002).
+    orderVersion: integer('order_version'),
     actor: text('actor').notNull().default('system'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

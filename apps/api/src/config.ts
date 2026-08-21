@@ -19,7 +19,7 @@ const envSchema = z.object({
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 
   COURIER_ACTIVE_LIMIT: z.coerce.number().int().positive().default(DEFAULT_COURIER_ACTIVE_LIMIT),
-  SEARCH_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.25),
+  SEARCH_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 });
