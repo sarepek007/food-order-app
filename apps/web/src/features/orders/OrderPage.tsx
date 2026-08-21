@@ -125,8 +125,12 @@ export function OrderPage() {
       </div>
 
       <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">Заказ №{order.publicNumber}</h1>
-        <StatusBadge status={order.status} />
+        <h1 className="text-xl font-semibold">{`Заказ №${order.publicNumber}`}</h1>
+        {/* Точка привязки для e2e: в журнале те же названия статусов,
+            и без неё селектор становится неоднозначным. */}
+        <span data-testid="order-status">
+          <StatusBadge status={order.status} />
+        </span>
         <span className="text-xs text-muted">версия {order.version}</span>
       </header>
 
@@ -169,7 +173,9 @@ export function OrderPage() {
               </dd>
 
               <dt className="text-muted">Курьер</dt>
-              <dd>{order.courier?.name ?? <span className="text-slate-400">не назначен</span>}</dd>
+              <dd data-testid="order-courier">
+                {order.courier?.name ?? <span className="text-slate-400">не назначен</span>}
+              </dd>
 
               <dt className="text-muted">Адрес доставки</dt>
               <dd>{order.deliveryAddress}</dd>

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: food
+          POSTGRES_PASSWORD: food
+          POSTGRES_DB: food_orders
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U food -d food_orders"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://food:food@localhost:5432/food_orders
+      TEST_DATABASE_URL: postgres://food:food@localhost:5432/food_orders_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Отдельная БД для интеграционных тестов создаётся init-скриптом
+      # в docker compose; в CI поднимаем её вручную.
+      - name: Создать тестовую БД
+        run: psql "$DATABASE_URL" -c 'CREATE DATABASE food_orders_test OWNER food'
+
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+      - name: Установить браузер для e2e
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Данные для e2e
+        run: pnpm --filter @food/api seed
+
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

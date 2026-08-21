@@ -16,10 +16,13 @@
     "test": "pnpm -r test",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev"
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.5",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",

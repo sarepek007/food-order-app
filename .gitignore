@@ -15,3 +15,6 @@ coverage/
 
 playwright-report/
 test-results/
+
+# Playwright
+/test-results/

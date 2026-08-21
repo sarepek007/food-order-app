@@ -6,7 +6,6 @@ services:
       POSTGRES_USER: food
       POSTGRES_PASSWORD: food
       POSTGRES_DB: food_orders
-      # Ускоряет тесты: дурабельность на локальной машине не нужна.
       POSTGRES_INITDB_ARGS: '--data-checksums'
     ports:
       - '5432:5432'
@@ -19,6 +18,61 @@ services:
       timeout: 3s
       retries: 20
       start_period: 5s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: food-order-api
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://food:food@postgres:5432/food_orders
+      PORT: 3000
+      LOG_LEVEL: info
+      COURIER_ACTIVE_LIMIT: 3
+      SEARCH_SIMILARITY_THRESHOLD: 0.5
+      CORS_ORIGIN: http://localhost:8080
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  # Одноразовая загрузка демонстрационных данных.
+  # Запускается явно: `docker compose run --rm seed`.
+  seed:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: food-order-seed
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://food:food@postgres:5432/food_orders
+      COURIER_ACTIVE_LIMIT: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ['tools']
+    command: ['node', 'apps/api/dist/seed/seed-cli.js']
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: food-order-web
+    ports:
+      - '8080:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres-data:
