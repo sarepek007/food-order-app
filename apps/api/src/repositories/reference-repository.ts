@@ -32,10 +32,14 @@ export async function listCouriersWithLoad(db: Database): Promise<CourierWithLoa
   const rows = await db
     .select({
       courier: couriers,
+      // Таблицы во вложенном запросе квалифицируются явно: drizzle подставляет
+      // имена колонок без префикса, и внутри подзапроса они разрешились бы
+      // в orders — сравнение courier_id с orders.id всегда давало бы 0.
       activeOrdersCount: sql<number>`(
-        SELECT count(*)::int FROM ${orders}
-        WHERE ${orders.courierId} = ${couriers.id}
-          AND ${orders.status} IN ('ready', 'picked_up')
+        SELECT count(*)::int
+        FROM ${orders} AS active_order
+        WHERE active_order.courier_id = ${couriers}.id
+          AND active_order.status IN ('ready', 'picked_up')
       )`,
     })
     .from(couriers)

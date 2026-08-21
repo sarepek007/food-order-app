@@ -43,6 +43,18 @@ pnpm test                         # тесты всех пакетов
 
 Схема БД и её инварианты: [docs/DATABASE.md](docs/DATABASE.md).
 
+## API
+
+Документация: [docs/API.md](docs/API.md) · интерактивно: `http://localhost:3000/docs`
+
+```bash
+pnpm --filter @food/api dev
+```
+
+Готовые сценарии для HTTP-клиента WebStorm — [apps/api/requests.http](apps/api/requests.http):
+открыть файл, выбрать окружение `local` и выполнять запросы сверху вниз.
+Пункты 6–8 воспроизводят конфликт версий из ТЗ.
+
 ## Команды
 
 | Команда | Что делает |
@@ -53,6 +65,7 @@ pnpm test                         # тесты всех пакетов
 | `pnpm format` | Prettier |
 | `pnpm db:up` / `pnpm db:down` | поднять/остановить Postgres |
 | `pnpm --filter @food/api migrate` | применить миграции |
+| `pnpm --filter @food/api dev` | запустить API на :3000 |
 
 ## Состояние работ
 
@@ -64,4 +77,7 @@ pnpm test                         # тесты всех пакетов
   с фильтрами и нечётким поиском. Оптимистическая блокировка по версии
   и advisory-лок по курьеру — 110 интеграционных тестов, из них 11 на конкурентность.
 
-Итого 228 тестов. Прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).
+* **M4** — HTTP-слой: REST API на Fastify, `problem+json` по RFC 9457,
+  оптимистическая блокировка через `ETag`/`If-Match`, OpenAPI на `/docs`.
+
+Итого 275 тестов. Прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).

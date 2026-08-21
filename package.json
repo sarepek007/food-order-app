@@ -19,7 +19,7 @@
     "dev": "pnpm --parallel --filter \"./apps/*\" dev"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.5",
     "@types/node": "^22.10.5",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",

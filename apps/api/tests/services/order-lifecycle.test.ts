@@ -450,3 +450,43 @@ describe('чтение несуществующего заказа', () => {
     expect(error.code).toBe('ORDER_NOT_FOUND');
   });
 });
+
+describe('справочник курьеров с загрузкой', () => {
+  it('считает активные заказы каждого курьера независимо', async () => {
+    const maria = await insertCourier(pool, { name: 'Мария' });
+
+    await insertOrder(pool, { restaurantId: restaurant.id, courierId: courier.id, status: 'ready' });
+    await insertOrder(pool, { restaurantId: restaurant.id, courierId: courier.id, status: 'picked_up' });
+    await insertOrder(pool, { restaurantId: restaurant.id, courierId: maria.id, status: 'ready' });
+    // Неактивные статусы в загрузку не попадают.
+    await insertOrder(pool, { restaurantId: restaurant.id, courierId: maria.id, status: 'delivered' });
+    await insertOrder(pool, { restaurantId: restaurant.id, status: 'new' });
+
+    const couriers = await service.listCouriers();
+    const byName = new Map(couriers.map((item) => [item.name, item]));
+
+    expect(byName.get('Иван')).toMatchObject({ activeOrdersCount: 2, hasCapacity: true });
+    expect(byName.get('Мария')).toMatchObject({ activeOrdersCount: 1, hasCapacity: true });
+  });
+
+  it('снимает признак свободного слота при достижении лимита', async () => {
+    for (let index = 0; index < 3; index += 1) {
+      await insertOrder(pool, { restaurantId: restaurant.id, courierId: courier.id, status: 'ready' });
+    }
+
+    const couriers = await service.listCouriers();
+    expect(couriers.find((item) => item.name === 'Иван')).toMatchObject({
+      activeOrdersCount: 3,
+      hasCapacity: false,
+    });
+  });
+
+  it('неактивный курьер не имеет свободных слотов', async () => {
+    await insertCourier(pool, { name: 'Уволенный', isActive: false });
+    const couriers = await service.listCouriers();
+    expect(couriers.find((item) => item.name === 'Уволенный')).toMatchObject({
+      activeOrdersCount: 0,
+      hasCapacity: false,
+    });
+  });
+});

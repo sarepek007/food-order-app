@@ -1,0 +1,186 @@
+### Сценарии API для HTTP-клиента WebStorm
+# Запустить сверху вниз: каждый запрос сохраняет нужные значения
+# в переменные, поэтому идентификаторы подставлять руками не нужно.
+# Окружение выбирается в правом верхнем углу редактора: local.
+
+### 1. Проверка готовности
+GET {{baseUrl}}/health
+
+### 2. Справочник ресторанов (нужен для создания заказа)
+GET {{baseUrl}}/restaurants
+
+> {%
+    client.test("есть хотя бы один ресторан", function () {
+        client.assert(response.body.length > 0, "Сначала выполните: pnpm --filter @food/api seed");
+    });
+    client.global.set("restaurantId", response.body[0].id);
+%}
+
+### 3. Справочник курьеров с текущей загрузкой
+GET {{baseUrl}}/couriers
+
+> {%
+    client.global.set("courierId", response.body[0].id);
+    client.global.set("otherCourierId", response.body[1].id);
+%}
+
+### 4. Создание заказа
+POST {{baseUrl}}/orders
+Content-Type: application/json
+X-Actor: {{actor}}
+
+{
+  "customerName": "Пётр Клиентов",
+  "restaurantId": "{{restaurantId}}",
+  "deliveryAddress": "Ленинский проспект, д. 12, кв. 45",
+  "totalAmount": "1290.50"
+}
+
+> {%
+    client.test("создан со статусом new и версией 1", function () {
+        client.assert(response.status === 201, "ожидался 201, получен " + response.status);
+        client.assert(response.body.status === "new");
+        client.assert(response.body.version === 1);
+    });
+    client.global.set("orderId", response.body.id);
+    // ETag — это версия заказа. Его возвращают в If-Match при изменении.
+    client.global.set("etag", response.headers.valueOf("ETag"));
+%}
+
+### 5. Карточка заказа (обратите внимание на заголовок ETag)
+GET {{baseUrl}}/orders/{{orderId}}
+
+> {% client.global.set("etag", response.headers.valueOf("ETag")); %}
+
+### 6. Изменение БЕЗ If-Match — сервер обязан отклонить (428)
+PATCH {{baseUrl}}/orders/{{orderId}}/status
+Content-Type: application/json
+
+{
+  "status": "accepted"
+}
+
+> {%
+    client.test("428 Precondition Required", function () {
+        client.assert(response.status === 428, "ожидался 428, получен " + response.status);
+        client.assert(response.body.code === "PRECONDITION_REQUIRED");
+    });
+%}
+
+### 7. Изменение с корректным If-Match — успех, версия растёт
+PATCH {{baseUrl}}/orders/{{orderId}}/status
+Content-Type: application/json
+If-Match: {{etag}}
+X-Actor: {{actor}}
+
+{
+  "status": "accepted",
+  "comment": "подтверждено рестораном"
+}
+
+> {%
+    client.test("статус изменён, ETag обновился", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "accepted");
+        client.assert(response.body.version === 2);
+    });
+    client.global.set("staleEtag", "\"1\"");
+    client.global.set("etag", response.headers.valueOf("ETag"));
+%}
+
+### 8. КОНФЛИКТ: повтор со старой версией — 409 с объяснением
+# Ровно сценарий из ТЗ: оператор A работает с состоянием,
+# которое оператор B уже изменил.
+PATCH {{baseUrl}}/orders/{{orderId}}/status
+Content-Type: application/json
+If-Match: {{staleEtag}}
+X-Actor: оператор A
+
+{
+  "status": "preparing"
+}
+
+> {%
+    client.test("409 с актуальным состоянием и списком изменений", function () {
+        client.assert(response.status === 409, "ожидался 409, получен " + response.status);
+        client.assert(response.body.code === "ORDER_VERSION_CONFLICT");
+        client.assert(response.body.details.changes.length > 0, "нет объяснения, что изменилось");
+        client.assert(response.body.details.current.version > response.body.details.expectedVersion);
+    });
+%}
+
+### 9. Назначение курьера
+PUT {{baseUrl}}/orders/{{orderId}}/courier
+Content-Type: application/json
+If-Match: {{etag}}
+X-Actor: {{actor}}
+
+{
+  "courierId": "{{courierId}}"
+}
+
+> {% client.global.set("etag", response.headers.valueOf("ETag")); %}
+
+### 10. Недопустимый переход — 409 со списком разрешённых статусов
+PATCH {{baseUrl}}/orders/{{orderId}}/status
+Content-Type: application/json
+If-Match: {{etag}}
+
+{
+  "status": "delivered"
+}
+
+> {%
+    client.test("409 ORDER_INVALID_TRANSITION", function () {
+        client.assert(response.status === 409);
+        client.assert(response.body.details.allowedStatuses.length > 0);
+    });
+%}
+
+### 11. Журнал изменений заказа
+GET {{baseUrl}}/orders/{{orderId}}/audit?order=asc
+
+### 12. Поиск по адресу с опечатками
+GET {{baseUrl}}/orders?q=Лениский проспкт 12&sort=relevance
+
+> {%
+    client.test("нечёткий поиск находит адрес", function () {
+        client.assert(response.body.total > 0, "поиск с опечатками ничего не нашёл");
+    });
+%}
+
+### 13. Фильтрация, сортировка и пагинация
+GET {{baseUrl}}/orders?status=new,accepted&sort=totalAmount&order=desc&page=1&pageSize=5
+
+### 14. Отмена заказа
+POST {{baseUrl}}/orders/{{orderId}}/cancel
+Content-Type: application/json
+If-Match: {{etag}}
+X-Actor: {{actor}}
+
+{
+  "reason": "клиент передумал"
+}
+
+> {%
+    client.test("заказ отменён", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "cancelled");
+    });
+%}
+
+### 15. Повторная отмена — 409, заказ уже в терминальном статусе
+POST {{baseUrl}}/orders/{{orderId}}/cancel
+Content-Type: application/json
+If-Match: *
+
+{
+  "reason": "ещё раз"
+}
+
+> {%
+    client.test("409 ORDER_TERMINAL", function () {
+        client.assert(response.status === 409);
+        client.assert(response.body.code === "ORDER_TERMINAL");
+    });
+%}
