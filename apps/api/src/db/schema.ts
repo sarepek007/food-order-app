@@ -63,6 +63,15 @@ export const orders = pgTable(
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Момент последней смены статуса: updatedAt двигает любое изменение,
+    // включая смену курьера, поэтому для расчёта норматива он не годится.
+    //
+    // `default` здесь означает только «не требуется при вставке»: в самой БД
+    // значения по умолчанию нет намеренно, его подставляет триггер из created_at
+    // (см. миграцию 0003) — иначе вставка задним числом получала бы now().
+    statusChangedAt: timestamp('status_changed_at', { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
   },
   (table) => [
     index('idx_orders_status').on(table.status),

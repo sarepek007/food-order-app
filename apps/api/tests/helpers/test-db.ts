@@ -78,6 +78,8 @@ export interface InsertOrderOptions {
   totalAmount?: string;
   cancelReason?: string | null;
   createdAt?: Date;
+  /** Позволяет смоделировать заказ, давно висящий в статусе. */
+  statusChangedAt?: Date;
 }
 
 export async function insertOrder(
@@ -86,9 +88,11 @@ export async function insertOrder(
 ): Promise<{ id: string; version: number; status: string }> {
   const { rows } = await pool.query<{ id: string; version: number; status: string }>(
     `INSERT INTO orders (customer_name, restaurant_id, courier_id, delivery_address,
-                         total_amount, status, cancel_reason, created_at, updated_at)
+                         total_amount, status, cancel_reason, created_at, updated_at,
+                         status_changed_at)
      VALUES ($1, $2, $3, $4, $5, $6::order_status, $7,
-             COALESCE($8::timestamptz, now()), COALESCE($8::timestamptz, now()))
+             COALESCE($8::timestamptz, now()), COALESCE($8::timestamptz, now()),
+             $9::timestamptz)
      RETURNING id, version, status::text AS status`,
     [
       options.customerName ?? 'Иван Клиентов',
@@ -99,6 +103,7 @@ export async function insertOrder(
       options.status ?? 'new',
       options.cancelReason ?? null,
       options.createdAt ?? null,
+      options.statusChangedAt ?? null,
     ],
   );
   return rows[0]!;

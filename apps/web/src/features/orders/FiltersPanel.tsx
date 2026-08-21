@@ -1,7 +1,7 @@
 import { ORDER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from '@food/contracts';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
-import { FilterIcon, SearchIcon } from '@/components/icons';
+import { ClockIcon, FilterIcon, SearchIcon } from '@/components/icons';
 import { useCouriersQuery, useRestaurantsQuery } from '@/api/queries';
 import { hasActiveFilters, resetFilters, type OrderFilters } from './filters';
 
@@ -179,6 +179,22 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
             </button>
           );
         })}
+
+        {/* Отдельно от статусов: это фильтр по нарушению норматива,
+            а не по значению поля. */}
+        <button
+          type="button"
+          aria-pressed={filters.overdue}
+          onClick={() => onChange({ overdue: !filters.overdue })}
+          className={`ml-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+            filters.overdue
+              ? 'bg-danger text-white ring-1 ring-danger'
+              : 'bg-surface text-danger ring-1 ring-red-200 hover:bg-danger-soft'
+          }`}
+        >
+          <ClockIcon className="size-3.5" />
+          Только просроченные
+        </button>
 
         <div className="ml-auto flex items-center gap-3">
           {total !== undefined && (

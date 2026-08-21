@@ -137,6 +137,15 @@ describe('listOrdersQuerySchema', () => {
     expect(parsed.createdFrom).toBeInstanceOf(Date);
   });
 
+  it('разбирает overdue как булево', () => {
+    expect(listOrdersQuerySchema.parse({ overdue: 'true' }).overdue).toBe(true);
+    expect(listOrdersQuerySchema.parse({}).overdue).toBeUndefined();
+  });
+
+  it('принимает сортировку по времени в статусе', () => {
+    expect(listOrdersQuerySchema.parse({ sort: 'timeInStatus' }).sort).toBe('timeInStatus');
+  });
+
   it('разбирает unassigned как булево', () => {
     expect(listOrdersQuerySchema.parse({ unassigned: 'true' }).unassigned).toBe(true);
     expect(listOrdersQuerySchema.parse({ unassigned: 'false' }).unassigned).toBe(false);

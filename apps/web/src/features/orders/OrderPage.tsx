@@ -5,6 +5,7 @@ import { useAuditQuery, useOrderMutation, useOrderQuery, type OrderMutationInput
 import { errorMessage, isApiError, isNetworkError, type ApiError } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { ArrowLeftIcon, ArrowRightIcon, CancelIcon, CourierIcon, MinusIcon, SwapIcon } from '@/components/icons';
+import { SlaIndicator } from '@/components/SlaIndicator';
 import { StatusBadge } from '@/components/StatusBadge';
 import { CardSkeleton, EmptyState, ErrorState } from '@/components/states';
 import { useToast } from '@/components/Toaster';
@@ -141,6 +142,13 @@ export function OrderPage() {
         <span data-testid="order-status">
           <StatusBadge status={order.status} size="md" />
         </span>
+        <span className="text-sm">
+          <SlaIndicator
+            state={order.slaState}
+            secondsInStatus={order.secondsInStatus}
+            limitSeconds={order.slaLimitSeconds}
+          />
+        </span>
         <span className="tabular rounded-md bg-surface-muted px-2 py-0.5 text-xs text-muted ring-1 ring-line">
           {`версия ${order.version}`}
         </span>
@@ -208,6 +216,11 @@ export function OrderPage() {
 
               <dt className="text-muted">Изменён</dt>
               <dd title={formatDateTime(order.updatedAt)}>{formatRelative(order.updatedAt)}</dd>
+
+              <dt className="text-muted">Статус с</dt>
+              <dd title={formatDateTime(order.statusChangedAt)}>
+                {formatRelative(order.statusChangedAt)}
+              </dd>
 
               {order.cancelReason && (
                 <>

@@ -9,6 +9,8 @@ export interface OrderFilters {
   restaurantId: string[];
   courierId: string[];
   unassigned: boolean;
+  /** Только заказы, превысившие норматив времени на текущий статус. */
+  overdue: boolean;
   q: string;
   minAmount: string;
   maxAmount: string;
@@ -25,6 +27,7 @@ export const DEFAULT_FILTERS: OrderFilters = {
   restaurantId: [],
   courierId: [],
   unassigned: false,
+  overdue: false,
   q: '',
   minAmount: '',
   maxAmount: '',
@@ -64,6 +67,7 @@ export function filtersFromSearchParams(params: URLSearchParams): OrderFilters {
     restaurantId: parseList(params.get('restaurantId')),
     courierId: parseList(params.get('courierId')),
     unassigned: params.get('unassigned') === 'true',
+    overdue: params.get('overdue') === 'true',
     q: params.get('q') ?? '',
     minAmount: params.get('minAmount') ?? '',
     maxAmount: params.get('maxAmount') ?? '',
@@ -86,6 +90,7 @@ export function filtersToSearchParams(filters: OrderFilters): URLSearchParams {
   if (filters.restaurantId.length > 0) params.set('restaurantId', filters.restaurantId.join(','));
   if (filters.courierId.length > 0) params.set('courierId', filters.courierId.join(','));
   if (filters.unassigned) params.set('unassigned', 'true');
+  if (filters.overdue) params.set('overdue', 'true');
   if (filters.q.trim()) params.set('q', filters.q.trim());
   if (filters.minAmount) params.set('minAmount', filters.minAmount);
   if (filters.maxAmount) params.set('maxAmount', filters.maxAmount);
@@ -112,6 +117,7 @@ export function filtersToQuery(filters: OrderFilters): OrderListParams {
   if (filters.restaurantId.length > 0) query.restaurantId = filters.restaurantId;
   if (filters.courierId.length > 0) query.courierId = filters.courierId;
   if (filters.unassigned) query.unassigned = true;
+  if (filters.overdue) query.overdue = true;
   if (filters.q.trim()) query.q = filters.q.trim();
   if (filters.minAmount) query.minAmount = Number(filters.minAmount);
   if (filters.maxAmount) query.maxAmount = Number(filters.maxAmount);
@@ -128,6 +134,7 @@ export function hasActiveFilters(filters: OrderFilters): boolean {
     filters.restaurantId.length > 0 ||
     filters.courierId.length > 0 ||
     filters.unassigned ||
+    filters.overdue ||
     filters.q.trim() !== '' ||
     filters.minAmount !== '' ||
     filters.maxAmount !== '' ||

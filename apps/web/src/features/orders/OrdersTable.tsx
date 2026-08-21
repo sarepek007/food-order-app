@@ -1,6 +1,7 @@
 import type { OrderListItem } from '@food/contracts';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { SlaIndicator } from '@/components/SlaIndicator';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatDateTime, formatMoney, formatRelative } from '@/lib/format';
 import type { OrderFilters, SortField } from './filters';
@@ -27,6 +28,7 @@ interface Column {
 const COLUMNS: Column[] = [
   { key: 'publicNumber', title: '№' },
   { key: 'status', title: 'Статус', sort: 'status' },
+  { key: 'timeInStatus', title: 'В статусе', sort: 'timeInStatus' },
   { key: 'customerName', title: 'Клиент' },
   { key: 'restaurant', title: 'Ресторан', visibility: 'hidden lg:table-cell' },
   { key: 'courier', title: 'Курьер', visibility: 'hidden md:table-cell' },
@@ -84,7 +86,13 @@ export function OrdersTable({ items, filters, onSort, children }: OrdersTablePro
           {items.map((order) => (
             <tr
               key={order.id}
-              className="border-t border-line transition-colors hover:bg-accent-soft/50"
+              /* Просроченный заказ — исключение, ради которого оператор
+                 и открывает список: подсвечиваем всю строку. */
+              className={`border-t border-line transition-colors ${
+                order.slaState === 'overdue'
+                  ? 'bg-danger-soft/60 hover:bg-danger-soft'
+                  : 'hover:bg-accent-soft/50'
+              }`}
             >
               <td className="px-2 py-3 sm:px-3">
                 <Link
@@ -98,6 +106,14 @@ export function OrdersTable({ items, filters, onSort, children }: OrdersTablePro
 
               <td className="px-2 py-3 sm:px-3">
                 <StatusBadge status={order.status} />
+              </td>
+
+              <td className="px-2 py-3 sm:px-3">
+                <SlaIndicator
+                  state={order.slaState}
+                  secondsInStatus={order.secondsInStatus}
+                  limitSeconds={order.slaLimitSeconds}
+                />
               </td>
 
               {/* Ограничение ширины обязательно: без него truncate в ячейке

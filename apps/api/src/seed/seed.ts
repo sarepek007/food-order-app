@@ -100,6 +100,7 @@ export async function runSeed(pool: DbPool, options: SeedOptions = {}): Promise<
           'version',
           'created_at',
           'updated_at',
+          'status_changed_at',
         ],
         plan.orders.map((order) => [
           order.id,
@@ -114,6 +115,7 @@ export async function runSeed(pool: DbPool, options: SeedOptions = {}): Promise<
           order.version,
           order.createdAt,
           order.updatedAt,
+          order.statusChangedAt,
         ]),
       );
     } finally {

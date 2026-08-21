@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AUDIT_ACTIONS } from './audit.js';
 import { ORDER_STATUSES } from './order-status.js';
+import { SLA_STATES } from './sla.js';
 
 /* ------------------------------------------------------------------ */
 /* Примитивы                                                           */
@@ -102,6 +103,8 @@ export const ORDER_SORT_FIELDS = [
   'updatedAt',
   'totalAmount',
   'status',
+  // Время в текущем статусе: главный порядок для поиска залипших заказов.
+  'timeInStatus',
   'relevance',
 ] as const;
 export type OrderSortField = (typeof ORDER_SORT_FIELDS)[number];
@@ -115,6 +118,8 @@ export const listOrdersQuerySchema = z
     restaurantId: csvArray(uuidSchema),
     courierId: csvArray(uuidSchema),
     unassigned: booleanQuerySchema,
+    /** Только заказы, превысившие норматив времени на текущий статус. */
+    overdue: booleanQuerySchema,
     q: z.string().trim().max(200).optional(),
     minAmount: z.coerce.number().nonnegative().optional(),
     maxAmount: z.coerce.number().nonnegative().optional(),
@@ -186,6 +191,12 @@ export const orderListItemSchema = z.object({
   currency: z.string(),
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
+  /** Момент последней смены статуса — не то же самое, что updatedAt. */
+  statusChangedAt: z.string().datetime({ offset: true }),
+  secondsInStatus: z.number().int().nonnegative(),
+  slaState: z.enum(SLA_STATES),
+  /** Норматив на текущий статус в секундах; null у терминальных. */
+  slaLimitSeconds: z.number().int().positive().nullable(),
   version: z.number().int().positive(),
 });
 

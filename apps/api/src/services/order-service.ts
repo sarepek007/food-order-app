@@ -18,6 +18,7 @@ import {
   type OrderListItem,
   type Paginated,
   type Restaurant,
+  type StatusSlaMap,
 } from '@food/contracts';
 import { sql } from 'drizzle-orm';
 import { createDatabase, createTransactionalDatabase, type Database } from '../db/client.js';
@@ -52,6 +53,8 @@ import { paginate, toAuditEntry, toCourier, toOrderDetails, toOrderListItem, toR
 export interface OrderServiceOptions {
   courierActiveLimit: number;
   searchSimilarityThreshold: number;
+  /** Нормативы времени на статус; влияют на признак просрочки в ответе. */
+  statusSla?: StatusSlaMap;
 }
 
 /** Кто выполняет действие. Аутентификации нет — значение приходит заголовком X-Actor. */
@@ -79,10 +82,19 @@ export class OrderService {
     const result = await withTransaction(this.pool, async (client) => {
       const db = createTransactionalDatabase(client);
       await this.applySimilarityThreshold(db);
-      return listOrders(db, query);
+      return listOrders(db, query, this.options.statusSla);
     });
 
-    return paginate(result.items.map(toOrderListItem), result.total, query.page, query.pageSize);
+    // Единый момент расчёта на всю страницу: иначе соседние строки
+    // сравнивались бы с разным «сейчас».
+    const mapOptions = { ...this.mapOptions(), now: new Date() };
+
+    return paginate(
+      result.items.map((item) => toOrderListItem(item, mapOptions)),
+      result.total,
+      query.page,
+      query.pageSize,
+    );
   }
 
   async getById(id: string): Promise<OrderDetails> {
@@ -90,7 +102,7 @@ export class OrderService {
     if (!found) {
       throw this.orderNotFound(id);
     }
-    return toOrderDetails(found);
+    return toOrderDetails(found, this.mapOptions());
   }
 
   async getAudit(id: string, query: AuditQuery): Promise<Paginated<AuditEntry>> {
@@ -334,6 +346,10 @@ export class OrderService {
   /* Внутреннее                                                        */
   /* ---------------------------------------------------------------- */
 
+  private mapOptions(): { sla?: StatusSlaMap } {
+    return this.options.statusSla ? { sla: this.options.statusSla } : {};
+  }
+
   private async applySimilarityThreshold(db: Database): Promise<void> {
     const value = this.options.searchSimilarityThreshold;
     // SET LOCAL не принимает параметры привязки, поэтому значение подставляется
@@ -416,7 +432,7 @@ export class OrderService {
     if (!found) {
       throw this.orderNotFound(id);
     }
-    return toOrderDetails(found);
+    return toOrderDetails(found, this.mapOptions());
   }
 
   /**
@@ -452,7 +468,7 @@ export class OrderService {
       actualVersion,
       changedFields: changedFieldsOf(changes),
       changes: summaries,
-      current: toOrderDetails(current),
+      current: toOrderDetails(current, this.mapOptions()),
     });
   }
 }

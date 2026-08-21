@@ -48,6 +48,24 @@ test.describe('Список заказов', () => {
     );
   });
 
+  test('отбирает просроченные заказы и сортирует по времени в статусе', async ({ page }) => {
+    await page.goto('/orders');
+
+    await page.getByRole('button', { name: /Только просроченные/ }).click();
+    await expect(page).toHaveURL(/overdue=true/);
+
+    const rows = page.locator('tbody tr');
+    await expect(rows.first()).toBeVisible();
+
+    // Все показанные заказы отмечены как просроченные — признак объявлен
+    // текстом, а не только цветом строки.
+    const total = await rows.count();
+    await expect(page.getByText('— просрочен')).toHaveCount(total);
+
+    await page.getByRole('button', { name: /В статусе/ }).click();
+    await expect(page).toHaveURL(/sort=timeInStatus/);
+  });
+
   test('показывает пустое состояние и позволяет сбросить фильтры', async ({ page }) => {
     await page.goto('/orders?q=такогоадресатотовсенет');
 

@@ -1,6 +1,20 @@
 import process from 'node:process';
 import { z } from 'zod';
-import { DEFAULT_COURIER_ACTIVE_LIMIT } from '@food/contracts';
+import {
+  DEFAULT_COURIER_ACTIVE_LIMIT,
+  DEFAULT_STATUS_SLA_SECONDS,
+  ORDER_STATUSES,
+  type StatusSlaMap,
+} from '@food/contracts';
+
+/**
+ * Нормативы времени на статус зависят от города, кухни и времени суток,
+ * поэтому значения из @food/contracts — только основа. Переопределение
+ * приходит одним JSON: STATUS_SLA_SECONDS={"preparing":1800,"ready":600}.
+ */
+const slaOverridesSchema = z
+  .record(z.enum(ORDER_STATUSES), z.number().int().positive().nullable())
+  .optional();
 
 /**
  * Конфигурация валидируется один раз при старте: некорректный env должен
@@ -19,12 +33,30 @@ const envSchema = z.object({
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 
   COURIER_ACTIVE_LIMIT: z.coerce.number().int().positive().default(DEFAULT_COURIER_ACTIVE_LIMIT),
+  STATUS_SLA_SECONDS: z
+    .string()
+    .optional()
+    .transform((raw, ctx) => {
+      if (!raw) return undefined;
+      try {
+        return slaOverridesSchema.parse(JSON.parse(raw));
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Ожидается JSON вида {"preparing":1800}',
+        });
+        return z.NEVER;
+      }
+    }),
   SEARCH_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 });
 
-export type AppConfig = Readonly<z.infer<typeof envSchema>>;
+export type AppConfig = Readonly<z.infer<typeof envSchema>> & {
+  /** Итоговые нормативы: значения по умолчанию, перекрытые переменной окружения. */
+  readonly statusSla: StatusSlaMap;
+};
 
 /** Подхватывает .env рядом с пакетом, если он есть. Продакшен передаёт env напрямую. */
 function loadDotEnv(): void {
@@ -45,7 +77,12 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error(`Некорректная конфигурация окружения:\n${problems}`);
   }
 
-  return Object.freeze(parsed.data);
+  const statusSla: StatusSlaMap = Object.freeze({
+    ...DEFAULT_STATUS_SLA_SECONDS,
+    ...(parsed.data.STATUS_SLA_SECONDS ?? {}),
+  });
+
+  return Object.freeze({ ...parsed.data, statusSla });
 }
 
 let cached: AppConfig | undefined;

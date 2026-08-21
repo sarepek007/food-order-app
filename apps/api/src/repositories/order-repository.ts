@@ -1,4 +1,12 @@
-import { type OrderStatus, isSearchable, normalizeSearchQuery, type ListOrdersQuery } from '@food/contracts';
+import {
+  DEFAULT_STATUS_SLA_SECONDS,
+  ORDER_STATUSES,
+  isSearchable,
+  normalizeSearchQuery,
+  type ListOrdersQuery,
+  type OrderStatus,
+  type StatusSlaMap,
+} from '@food/contracts';
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { couriers, orders, restaurants, type OrderRow } from '../db/schema.js';
@@ -79,7 +87,30 @@ function searchCondition(normalizedQuery: string): SQL {
   )`;
 }
 
-function buildFilters(query: ListOrdersQuery): SQL[] {
+/**
+ * Условие «просрочен»: порог зависит от статуса, поэтому получается
+ * дизъюнкция по статусам. Каждая ветка ложится на составной индекс
+ * (status, status_changed_at) — планировщик обходится BitmapOr вместо
+ * полного прохода по таблице.
+ */
+function overdueCondition(sla: StatusSlaMap): SQL {
+  const branches = ORDER_STATUSES.flatMap((status) => {
+    const limit = sla[status];
+    if (limit === null) return [];
+    return [
+      sql`(${orders.status} = ${status}::order_status AND ${orders.statusChangedAt} < now() - make_interval(secs => ${limit}))`,
+    ];
+  });
+
+  // Все статусы терминальны — просроченных не существует по определению.
+  if (branches.length === 0) {
+    return sql`false`;
+  }
+
+  return sql`(${sql.join(branches, sql` OR `)})`;
+}
+
+function buildFilters(query: ListOrdersQuery, sla: StatusSlaMap): SQL[] {
   const conditions: SQL[] = [];
 
   if (query.status && query.status.length > 0) {
@@ -109,6 +140,12 @@ function buildFilters(query: ListOrdersQuery): SQL[] {
   if (query.createdTo) {
     conditions.push(lte(orders.createdAt, query.createdTo));
   }
+  if (query.overdue === true) {
+    conditions.push(overdueCondition(sla));
+  }
+  if (query.overdue === false) {
+    conditions.push(sql`NOT ${overdueCondition(sla)}`);
+  }
   if (isSearchable(query.q)) {
     conditions.push(searchCondition(normalizeSearchQuery(query.q!)));
   }
@@ -127,6 +164,12 @@ function buildOrderBy(query: ListOrdersQuery): SQL[] {
       return [direction(orders.totalAmount), tieBreaker];
     case 'status':
       return [direction(orders.status), direction(orders.createdAt), tieBreaker];
+    case 'timeInStatus':
+      // Дольше всего висящие заказы — это заказы с самой ранней сменой статуса.
+      return [
+        query.order === 'asc' ? desc(orders.statusChangedAt) : asc(orders.statusChangedAt),
+        tieBreaker,
+      ];
     case 'relevance': {
       if (!isSearchable(query.q)) {
         // Релевантность без поискового запроса не определена — падать не за что,
@@ -146,8 +189,12 @@ export interface ListOrdersResult {
   total: number;
 }
 
-export async function listOrders(db: Database, query: ListOrdersQuery): Promise<ListOrdersResult> {
-  const conditions = buildFilters(query);
+export async function listOrders(
+  db: Database,
+  query: ListOrdersQuery,
+  sla: StatusSlaMap = DEFAULT_STATUS_SLA_SECONDS,
+): Promise<ListOrdersResult> {
+  const conditions = buildFilters(query, sla);
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [{ value: total = 0 } = { value: 0 }] = await db

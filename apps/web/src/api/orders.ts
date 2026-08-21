@@ -12,6 +12,7 @@ export interface OrderListParams {
   restaurantId?: string[];
   courierId?: string[];
   unassigned?: boolean;
+  overdue?: boolean;
   q?: string;
   minAmount?: number;
   maxAmount?: number;

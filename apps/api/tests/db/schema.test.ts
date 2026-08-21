@@ -92,6 +92,79 @@ describe('версия заказа и updated_at', () => {
   });
 });
 
+describe('момент смены статуса', () => {
+  it('у нового заказа совпадает с датой создания', async () => {
+    const restaurant = await insertRestaurant(pool);
+    const order = await insertOrder(pool, { restaurantId: restaurant.id });
+
+    const { rows } = await pool.query<{ same: boolean }>(
+      'SELECT status_changed_at = created_at AS same FROM orders WHERE id = $1',
+      [order.id],
+    );
+    expect(rows[0]?.same).toBe(true);
+  });
+
+  it('обновляется при смене статуса', async () => {
+    const restaurant = await insertRestaurant(pool);
+    const order = await insertOrder(pool, {
+      restaurantId: restaurant.id,
+      createdAt: new Date(Date.now() - 60_000),
+    });
+
+    const { rows } = await pool.query<{ moved: boolean }>(
+      `UPDATE orders SET status = 'accepted' WHERE id = $1
+       RETURNING status_changed_at > created_at AS moved`,
+      [order.id],
+    );
+    expect(rows[0]?.moved).toBe(true);
+  });
+
+  it('НЕ обновляется при смене курьера — иначе норматив обнулялся бы зря', async () => {
+    const restaurant = await insertRestaurant(pool);
+    const courier = await insertCourier(pool);
+    const order = await insertOrder(pool, {
+      restaurantId: restaurant.id,
+      createdAt: new Date(Date.now() - 60_000),
+    });
+
+    const { rows } = await pool.query<{ unchanged: boolean; version: number }>(
+      `UPDATE orders SET courier_id = $2 WHERE id = $1
+       RETURNING status_changed_at = created_at AS unchanged, version`,
+      [order.id, courier.id],
+    );
+
+    // Версия выросла, потому что заказ изменился, а отметка статуса — нет.
+    expect(rows[0]?.unchanged).toBe(true);
+    expect(rows[0]?.version).toBe(2);
+  });
+
+  it('приложение не может подделать отметку', async () => {
+    const restaurant = await insertRestaurant(pool);
+    const order = await insertOrder(pool, { restaurantId: restaurant.id });
+
+    const { rows } = await pool.query<{ forged: boolean }>(
+      `UPDATE orders SET status = 'accepted', status_changed_at = '2020-01-01T00:00:00Z'
+       WHERE id = $1
+       RETURNING status_changed_at < '2021-01-01T00:00:00Z' AS forged`,
+      [order.id],
+    );
+    expect(rows[0]?.forged).toBe(false);
+  });
+
+  it('не может оказаться раньше создания заказа', async () => {
+    const restaurant = await insertRestaurant(pool);
+    const order = await insertOrder(pool, { restaurantId: restaurant.id });
+
+    const error = await errorOf(() =>
+      pool.query(
+        `UPDATE orders SET status_changed_at = created_at - interval '1 hour' WHERE id = $1`,
+        [order.id],
+      ),
+    );
+    expect(error.message).toBe('orders_status_changed_after_created');
+  });
+});
+
 describe('ограничения целостности', () => {
   it('запрещает статус ready без курьера', async () => {
     const restaurant = await insertRestaurant(pool);

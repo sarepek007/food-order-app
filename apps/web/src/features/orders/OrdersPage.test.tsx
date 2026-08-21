@@ -233,6 +233,81 @@ describe('фильтры в адресной строке', () => {
   });
 });
 
+describe('нормативы времени в статусе', () => {
+  it('показывает, сколько заказ находится в текущем статусе', async () => {
+    server.use(
+      http.get(`${API}/orders`, () =>
+        HttpResponse.json(
+          makeList([
+            makeOrder({ status: 'preparing', secondsInStatus: 40 * 60, slaState: 'overdue' }),
+          ]),
+        ),
+      ),
+    );
+
+    render();
+    expect(await screen.findByText('40 мин')).toBeInTheDocument();
+  });
+
+  it('просроченный заказ помечен текстом, а не только цветом строки', async () => {
+    server.use(
+      http.get(`${API}/orders`, () =>
+        HttpResponse.json(
+          makeList([
+            makeOrder({ status: 'preparing', secondsInStatus: 40 * 60, slaState: 'overdue' }),
+          ]),
+        ),
+      ),
+    );
+
+    render();
+    await screen.findByText('Пётр Клиентов');
+    // Именно скрытая подпись для скринридера: кнопка фильтра тоже содержит
+    // слово «просроченные», поэтому проверка должна быть точной.
+    expect(screen.getByText('— просрочен')).toBeInTheDocument();
+  });
+
+  it('фильтр «только просроченные» уходит в URL и в запрос', async () => {
+    const requests: string[] = [];
+    server.use(
+      http.get(`${API}/orders`, ({ request }) => {
+        requests.push(new URL(request.url).search);
+        return HttpResponse.json(makeList([makeOrder()]));
+      }),
+    );
+
+    const { user } = render();
+    await screen.findByText('Пётр Клиентов');
+
+    await user.click(screen.getByRole('button', { name: /Только просроченные/ }));
+
+    await waitFor(() => expect(currentSearch()).toContain('overdue=true'));
+    await waitFor(() => expect(requests.at(-1)).toContain('overdue=true'));
+  });
+
+  it('фильтр восстанавливается из адреса', async () => {
+    server.use(http.get(`${API}/orders`, () => HttpResponse.json(makeList([makeOrder()]))));
+
+    render('/orders?overdue=true');
+    await screen.findByText('Пётр Клиентов');
+
+    expect(screen.getByRole('button', { name: /Только просроченные/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('сортировка по времени в статусе доступна из заголовка', async () => {
+    server.use(http.get(`${API}/orders`, () => HttpResponse.json(makeList([makeOrder()]))));
+
+    const { user } = render();
+    await screen.findByText('Пётр Клиентов');
+
+    await user.click(screen.getByRole('button', { name: /В статусе/ }));
+    await waitFor(() => expect(currentSearch()).toContain('sort=timeInStatus'));
+  });
+});
+
 describe('сортировка', () => {
   it('клик по заголовку меняет поле и направление', async () => {
     server.use(http.get(`${API}/orders`, () => HttpResponse.json(makeList([makeOrder()]))));

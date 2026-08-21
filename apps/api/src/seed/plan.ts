@@ -42,6 +42,8 @@ export interface PlannedOrder {
   cancelReason: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Момент последней смены статуса — не то же самое, что updatedAt. */
+  statusChangedAt: Date;
   version: number;
   events: SeedEvent[];
 }
@@ -335,6 +337,12 @@ export function buildSeedPlan(options: SeedPlanOptions = {}): SeedPlan {
       current = 'cancelled';
     }
 
+    // Смена курьера двигает updated_at, но не статус, поэтому берём
+    // время последнего события, которое действительно поменяло статус.
+    const lastStatusEvent = [...events]
+      .reverse()
+      .find((event) => event.newStatus !== null && event.newStatus !== event.oldStatus);
+
     orders.push({
       id: random.uuid(),
       restaurantIndex: random.int(0, restaurants.length - 1),
@@ -347,6 +355,7 @@ export function buildSeedPlan(options: SeedPlanOptions = {}): SeedPlan {
       cancelReason,
       createdAt,
       updatedAt: new Date(cursor),
+      statusChangedAt: lastStatusEvent?.at ?? createdAt,
       version,
       events,
     });

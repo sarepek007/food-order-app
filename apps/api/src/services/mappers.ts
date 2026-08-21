@@ -1,6 +1,10 @@
 import {
+  DEFAULT_STATUS_SLA_SECONDS,
   allowedTransitions,
   isCancellable,
+  slaLimitFor,
+  slaStateFor,
+  type StatusSlaMap,
   type AuditEntry,
   type Courier,
   type OrderDetails,
@@ -17,7 +21,26 @@ function iso(value: Date): string {
   return value.toISOString();
 }
 
-export function toOrderListItem({ order, restaurant, courier }: OrderWithRefs): OrderListItem {
+export interface MapOptions {
+  sla?: StatusSlaMap;
+  /** Момент расчёта. Передаётся явно, чтобы все заказы страницы считались одинаково. */
+  now?: Date;
+}
+
+export function toOrderListItem(
+  { order, restaurant, courier }: OrderWithRefs,
+  options: MapOptions = {},
+): OrderListItem {
+  const sla = options.sla ?? DEFAULT_STATUS_SLA_SECONDS;
+  const now = options.now ?? new Date();
+
+  // Отрицательное значение возможно только при рассинхроне часов — обнуляем,
+  // иначе заказ выглядел бы «моложе» момента смены статуса.
+  const secondsInStatus = Math.max(
+    0,
+    Math.floor((now.getTime() - order.statusChangedAt.getTime()) / 1000),
+  );
+
   return {
     id: order.id,
     publicNumber: order.publicNumber,
@@ -30,14 +53,18 @@ export function toOrderListItem({ order, restaurant, courier }: OrderWithRefs): 
     currency: order.currency,
     createdAt: iso(order.createdAt),
     updatedAt: iso(order.updatedAt),
+    statusChangedAt: iso(order.statusChangedAt),
+    secondsInStatus,
+    slaState: slaStateFor({ status: order.status, secondsInStatus, sla }),
+    slaLimitSeconds: slaLimitFor(order.status, sla),
     version: order.version,
   };
 }
 
-export function toOrderDetails(source: OrderWithRefs): OrderDetails {
+export function toOrderDetails(source: OrderWithRefs, options: MapOptions = {}): OrderDetails {
   const { order, restaurant } = source;
   return {
-    ...toOrderListItem(source),
+    ...toOrderListItem(source, options),
     customerPhone: order.customerPhone,
     cancelReason: order.cancelReason,
     restaurant: { id: restaurant.id, name: restaurant.name, address: restaurant.address },

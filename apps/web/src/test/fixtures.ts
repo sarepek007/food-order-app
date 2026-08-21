@@ -1,6 +1,8 @@
 import {
   allowedTransitions,
   isCancellable,
+  slaLimitFor,
+  slaStateFor,
   type AuditEntry,
   type Courier,
   type OrderDetails,
@@ -57,6 +59,12 @@ export function makeOrder(overrides: Partial<OrderDetails> = {}): OrderDetails {
     cancelReason: null,
     createdAt: '2026-05-20T09:00:00.000Z',
     updatedAt: '2026-05-20T09:30:00.000Z',
+    statusChangedAt: '2026-05-20T09:30:00.000Z',
+    secondsInStatus: 120,
+    // Согласованное значение по умолчанию: тесты, которым важен именно
+    // норматив, переопределяют его явно.
+    slaState: slaStateFor({ status, secondsInStatus: 120 }),
+    slaLimitSeconds: slaLimitFor(status),
     version: 1,
     allowedTransitions: [...allowedTransitions(status)],
     cancellable: isCancellable(status),

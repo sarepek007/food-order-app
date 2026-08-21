@@ -74,6 +74,7 @@ export async function buildApp({ config, pool }: BuildAppOptions): Promise<Fasti
   const service = new OrderService(pool, {
     courierActiveLimit: config.COURIER_ACTIVE_LIMIT,
     searchSimilarityThreshold: config.SEARCH_SIMILARITY_THRESHOLD,
+    statusSla: config.statusSla,
   });
 
   await app.register(

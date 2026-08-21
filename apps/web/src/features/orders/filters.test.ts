@@ -27,6 +27,11 @@ describe('чтение фильтров из адреса', () => {
     expect(parse('status=new,shipped,ready').status).toEqual(['new', 'ready']);
   });
 
+  it('разбирает флаг «только просроченные»', () => {
+    expect(parse('overdue=true').overdue).toBe(true);
+    expect(parse('').overdue).toBe(false);
+  });
+
   it('разбирает флаг «без курьера»', () => {
     expect(parse('unassigned=true').unassigned).toBe(true);
     expect(parse('unassigned=false').unassigned).toBe(false);
@@ -155,6 +160,7 @@ describe('признак активных фильтров', () => {
     ['статус', { status: ['new'] as OrderFilters['status'] }],
     ['поиск', { q: 'Мира' }],
     ['без курьера', { unassigned: true }],
+    ['только просроченные', { overdue: true }],
     ['сумма', { minAmount: '100' }],
     ['дата', { createdFrom: '2026-05-01' }],
   ])('%s считается активным фильтром', (_label, patch) => {

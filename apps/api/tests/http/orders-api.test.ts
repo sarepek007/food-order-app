@@ -108,6 +108,50 @@ describe('GET /orders', () => {
   });
 });
 
+describe('нормативы времени в статусе', () => {
+  it('в списке приходят время в статусе и признак просрочки', async () => {
+    await insertOrder(pool, {
+      restaurantId: restaurant.id,
+      status: 'preparing',
+      createdAt: new Date(Date.now() - 60 * 60_000),
+      statusChangedAt: new Date(Date.now() - 45 * 60_000),
+    });
+
+    const response = await app.inject({ method: 'GET', url: `${BASE}/orders` });
+    const [order] = response.json<{ items: Record<string, unknown>[] }>().items;
+
+    expect(order).toMatchObject({ slaState: 'overdue', slaLimitSeconds: 25 * 60 });
+    expect(order!['secondsInStatus']).toBeGreaterThan(44 * 60);
+    expect(order!['statusChangedAt']).toEqual(expect.any(String));
+  });
+
+  it('фильтр overdue=true отбирает только просроченные', async () => {
+    await insertOrder(pool, {
+      restaurantId: restaurant.id,
+      status: 'preparing',
+      createdAt: new Date(Date.now() - 60 * 60_000),
+      statusChangedAt: new Date(Date.now() - 45 * 60_000),
+    });
+    await insertOrder(pool, { restaurantId: restaurant.id, status: 'preparing' });
+
+    const response = await app.inject({ method: 'GET', url: `${BASE}/orders?overdue=true` });
+    expect(response.json<{ total: number }>().total).toBe(1);
+  });
+
+  it('сортировка по времени в статусе принимается', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `${BASE}/orders?sort=timeInStatus&order=desc`,
+    });
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('несуществующее значение overdue отклоняется', async () => {
+    const response = await app.inject({ method: 'GET', url: `${BASE}/orders?overdue=когда-нибудь` });
+    expect(response.statusCode).toBe(400);
+  });
+});
+
 describe('GET /orders/:id', () => {
   it('возвращает карточку и ETag с версией', async () => {
     const created = await createOrder();
