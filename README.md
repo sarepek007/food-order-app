@@ -205,4 +205,5 @@ E2E_BASE_URL=http://localhost:8080 E2E_API_URL=http://localhost:8080 pnpm test:e
 | [docs/DATABASE.md](docs/DATABASE.md) | схема, индексы, инварианты, миграции |
 | [docs/PLAN.md](docs/PLAN.md) | ход работ по майлстоунам и найденные дефекты |
 | [docs/adr](docs/adr) | принятые решения: контекст → решение → альтернативы → следствия |
+| [docs/BACKLOG.md](docs/BACKLOG.md) | что дальше: улучшения с критериями приёмки |
 | [docs/SPEC.md](docs/SPEC.md) | исходная спецификация |

@@ -13,6 +13,8 @@
 | M6 | Frontend React: список, карточка, состояния | ✅ | `pnpm --filter @food/web test` (81 тест) |
 | M7 | E2E, Docker, CI, README | ✅ | `pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e` |
 
+Дальнейшие улучшения с критериями приёмки — в [BACKLOG.md](./BACKLOG.md).
+
 ## M1 — что сделано
 
 `packages/contracts` — единственный источник правды о домене, импортируется и API, и веб-клиентом:
