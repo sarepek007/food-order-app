@@ -1,4 +1,5 @@
 import {
+  IDEMPOTENCY_TTL_HOURS,
   checkCancellation,
   checkCourierAssignment,
   checkCourierCapacity,
@@ -33,6 +34,10 @@ import {
   type AuditRecord,
 } from '../repositories/audit-repository.js';
 import {
+  findIdempotencyRecord,
+  saveIdempotencyRecord,
+} from '../repositories/idempotency-repository.js';
+import {
   findOrderRow,
   findOrderWithRefs,
   getCourierLoad,
@@ -60,6 +65,18 @@ export interface OrderServiceOptions {
 /** Кто выполняет действие. Аутентификации нет — значение приходит заголовком X-Actor. */
 export interface ActorContext {
   actor: string;
+}
+
+/**
+ * Контекст повторяемого запроса. Присутствует, только если клиент прислал
+ * Idempotency-Key: без ключа поведение прежнее.
+ */
+export interface IdempotencyContext {
+  key: string;
+  /** Отпечаток запроса: тот же ключ с другим телом — ошибка клиента. */
+  requestHash: string;
+  /** Вызывается, если результат воспроизведён, а не выполнен заново. */
+  onReplay?: () => void;
 }
 
 export class OrderService {
@@ -129,10 +146,12 @@ export class OrderService {
   /* Создание                                                          */
   /* ---------------------------------------------------------------- */
 
-  async create(input: CreateOrderInput, context: ActorContext): Promise<OrderDetails> {
-    return withTransaction(this.pool, async (client) => {
-      const db = createTransactionalDatabase(client);
-
+  async create(
+    input: CreateOrderInput,
+    context: ActorContext,
+    idempotency?: IdempotencyContext,
+  ): Promise<OrderDetails> {
+    return this.mutate(idempotency, 201, context, async (db) => {
       const restaurant = await findRestaurantById(db, input.restaurantId);
       if (!restaurant) {
         throw new DomainError('RESTAURANT_NOT_FOUND', 'Ресторан не найден', {
@@ -188,9 +207,9 @@ export class OrderService {
     input: ChangeStatusInput,
     expectedVersion: number,
     context: ActorContext,
+    idempotency?: IdempotencyContext,
   ): Promise<OrderDetails> {
-    return withTransaction(this.pool, async (client) => {
-      const db = createTransactionalDatabase(client);
+    return this.mutate(idempotency, 200, context, async (db) => {
       const order = await this.requireOrderAtVersion(db, id, expectedVersion);
 
       assertRule(
@@ -232,9 +251,9 @@ export class OrderService {
     courierId: string,
     expectedVersion: number,
     context: ActorContext,
+    idempotency?: IdempotencyContext,
   ): Promise<OrderDetails> {
-    return withTransaction(this.pool, async (client) => {
-      const db = createTransactionalDatabase(client);
+    return this.mutate(idempotency, 200, context, async (db) => {
       const order = await this.requireOrderAtVersion(db, id, expectedVersion);
       const courier = await this.requireCourier(db, courierId);
 
@@ -279,9 +298,9 @@ export class OrderService {
     id: string,
     expectedVersion: number,
     context: ActorContext,
+    idempotency?: IdempotencyContext,
   ): Promise<OrderDetails> {
-    return withTransaction(this.pool, async (client) => {
-      const db = createTransactionalDatabase(client);
+    return this.mutate(idempotency, 200, context, async (db) => {
       const order = await this.requireOrderAtVersion(db, id, expectedVersion);
 
       assertRule(
@@ -316,9 +335,9 @@ export class OrderService {
     input: CancelOrderInput,
     expectedVersion: number,
     context: ActorContext,
+    idempotency?: IdempotencyContext,
   ): Promise<OrderDetails> {
-    return withTransaction(this.pool, async (client) => {
-      const db = createTransactionalDatabase(client);
+    return this.mutate(idempotency, 200, context, async (db) => {
       const order = await this.requireOrderAtVersion(db, id, expectedVersion);
 
       assertRule(checkCancellation({ currentStatus: order.status }));
@@ -345,6 +364,84 @@ export class OrderService {
   /* ---------------------------------------------------------------- */
   /* Внутреннее                                                        */
   /* ---------------------------------------------------------------- */
+
+  /**
+   * Единая обёртка над изменяющими операциями.
+   *
+   * Результат сохраняется в той же транзакции, что и само изменение,
+   * поэтому состояние «применено, но не записано» невозможно. Параллельный
+   * запрос с тем же ключом упирается в первичный ключ: его транзакция
+   * откатывается целиком, и он возвращает уже сохранённый результат.
+   */
+  private async mutate(
+    idempotency: IdempotencyContext | undefined,
+    responseStatus: number,
+    context: ActorContext,
+    work: (db: Database) => Promise<OrderDetails>,
+  ): Promise<OrderDetails> {
+    if (idempotency) {
+      const stored = await findIdempotencyRecord(this.db, idempotency.key);
+      if (stored) {
+        return this.replay(stored, idempotency);
+      }
+    }
+
+    try {
+      return await withTransaction(this.pool, async (client) => {
+        const db = createTransactionalDatabase(client);
+        const result = await work(db);
+
+        if (idempotency) {
+          await saveIdempotencyRecord(db, {
+            key: idempotency.key,
+            requestHash: idempotency.requestHash,
+            responseStatus,
+            responseBody: result,
+            orderId: result.id,
+            actor: context.actor,
+            ttlHours: IDEMPOTENCY_TTL_HOURS,
+          });
+        }
+
+        return result;
+      });
+    } catch (error) {
+      if (!idempotency) {
+        throw error;
+      }
+
+      // Параллельный запрос с тем же ключом мог опередить нас двумя способами:
+      // мы упёрлись в первичный ключ таблицы либо — что случается чаще —
+      // раньше получили конфликт версий, потому что победитель уже поднял
+      // версию заказа. В обоих случаях операция с этим ключом выполнена,
+      // и повтор обязан вернуть её результат, а не ошибку.
+      const stored = await findIdempotencyRecord(this.db, idempotency.key);
+      if (stored) {
+        return this.replay(stored, idempotency);
+      }
+
+      // Записи нет — значит, ошибка своя: некорректный переход, лимит курьера
+      // или настоящий конфликт версий. Отдаём как есть.
+      throw error;
+    }
+  }
+
+  private replay(
+    stored: { requestHash: string; responseBody: unknown },
+    idempotency: IdempotencyContext,
+  ): OrderDetails {
+    if (stored.requestHash !== idempotency.requestHash) {
+      throw new DomainError(
+        'IDEMPOTENCY_KEY_REUSED',
+        `Ключ идемпотентности «${idempotency.key}» уже использован для другого запроса. ` +
+          'Для нового изменения нужен новый ключ.',
+        { key: idempotency.key },
+      );
+    }
+
+    idempotency.onReplay?.();
+    return stored.responseBody as OrderDetails;
+  }
 
   private mapOptions(): { sla?: StatusSlaMap } {
     return this.options.statusSla ? { sla: this.options.statusSla } : {};

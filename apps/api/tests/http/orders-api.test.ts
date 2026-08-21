@@ -34,6 +34,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await pool.query('TRUNCATE idempotency_keys');
   await truncateAll(pool);
   restaurant = await insertRestaurant(pool, { name: 'Пушкин' });
   courier = await insertCourier(pool, { name: 'Иван' });
@@ -534,6 +535,168 @@ describe('журнал изменений', () => {
       url: `${BASE}/orders/00000000-0000-4000-8000-000000000000/audit`,
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('идемпотентность', () => {
+  const KEY = 'e2e-idempotency-key-0001';
+
+  it('повтор запроса возвращает исходный ответ и помечен заголовком', async () => {
+    const created = await createOrder();
+
+    const first = await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers: { 'if-match': created.etag, 'idempotency-key': KEY },
+      payload: { status: 'accepted' },
+    });
+    const second = await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers: { 'if-match': created.etag, 'idempotency-key': KEY },
+      payload: { status: 'accepted' },
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(first.headers['idempotency-replayed']).toBeUndefined();
+    expect(second.headers['idempotency-replayed']).toBe('true');
+    expect(second.json()).toEqual(first.json());
+    expect(second.headers['etag']).toBe(first.headers['etag']);
+  });
+
+  it('повтор не добавляет запись в журнал', async () => {
+    const created = await createOrder();
+    const headers = { 'if-match': created.etag, 'idempotency-key': `${KEY}-audit` };
+
+    await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers,
+      payload: { status: 'accepted' },
+    });
+    await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers,
+      payload: { status: 'accepted' },
+    });
+
+    const audit = await app.inject({ method: 'GET', url: `${BASE}/orders/${created.id}/audit` });
+    expect(audit.json<{ total: number }>().total).toBe(2); // создание + один переход
+  });
+
+  it('тот же ключ с другим телом отклоняется', async () => {
+    const created = await createOrder();
+    const key = `${KEY}-reuse`;
+
+    await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers: { 'if-match': created.etag, 'idempotency-key': key },
+      payload: { status: 'accepted' },
+    });
+
+    const reused = await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers: { 'if-match': '"2"', 'idempotency-key': key },
+      payload: { status: 'preparing' },
+    });
+
+    expect(reused.statusCode).toBe(409);
+    expect(problemOf(reused.payload).code).toBe('IDEMPOTENCY_KEY_REUSED');
+  });
+
+  it('один ключ на разных заказах — тоже ошибка клиента', async () => {
+    const first = await createOrder();
+    const second = await createOrder();
+    const key = `${KEY}-cross-order`;
+
+    await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${first.id}/status`,
+      headers: { 'if-match': first.etag, 'idempotency-key': key },
+      payload: { status: 'accepted' },
+    });
+
+    const other = await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${second.id}/status`,
+      headers: { 'if-match': second.etag, 'idempotency-key': key },
+      payload: { status: 'accepted' },
+    });
+
+    expect(other.statusCode).toBe(409);
+    expect(problemOf(other.payload).code).toBe('IDEMPOTENCY_KEY_REUSED');
+  });
+
+  it('создание заказа с повтором не создаёт второй заказ', async () => {
+    const key = `${KEY}-create`;
+    const payload = {
+      customerName: 'Пётр Клиентов',
+      restaurantId: restaurant.id,
+      deliveryAddress: 'ул. Ленина, д. 5',
+      totalAmount: '100.00',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `${BASE}/orders`,
+      headers: { 'idempotency-key': key },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: `${BASE}/orders`,
+      headers: { 'idempotency-key': key },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(201);
+    expect(second.statusCode).toBe(201);
+    expect(second.json<{ id: string }>().id).toBe(first.json<{ id: string }>().id);
+
+    const list = await app.inject({ method: 'GET', url: `${BASE}/orders` });
+    expect(list.json<{ total: number }>().total).toBe(1);
+  });
+
+  it('некорректный ключ отклоняется до выполнения операции', async () => {
+    const created = await createOrder();
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers: { 'if-match': created.etag, 'idempotency-key': 'short' },
+      payload: { status: 'accepted' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(problemOf(response.payload).detail).toContain('idempotency-key');
+
+    const audit = await app.inject({ method: 'GET', url: `${BASE}/orders/${created.id}/audit` });
+    expect(audit.json<{ total: number }>().total).toBe(1);
+  });
+
+  it('без ключа поведение прежнее: повтор даёт конфликт версий', async () => {
+    const created = await createOrder();
+    const headers = { 'if-match': created.etag };
+
+    await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers,
+      payload: { status: 'accepted' },
+    });
+    const repeat = await app.inject({
+      method: 'PATCH',
+      url: `${BASE}/orders/${created.id}/status`,
+      headers,
+      payload: { status: 'accepted' },
+    });
+
+    expect(repeat.statusCode).toBe(409);
+    expect(problemOf(repeat.payload).code).toBe('ORDER_VERSION_CONFLICT');
   });
 });
 

@@ -52,6 +52,8 @@ export interface RequestOptions {
   body?: unknown;
   /** Значение ETag для If-Match; '*' означает «применить поверх». */
   ifMatch?: string | null;
+  /** Ключ повтора: защищает от двойного применения при ретрае и двойном клике. */
+  idempotencyKey?: string | undefined;
   signal?: AbortSignal;
   query?: Record<string, string | string[] | number | boolean | undefined>;
 }
@@ -75,7 +77,7 @@ export function buildQueryString(
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
-  const { method = 'GET', body, ifMatch, signal, query } = options;
+  const { method = 'GET', body, ifMatch, idempotencyKey, signal, query } = options;
 
   const headers: Record<string, string> = {
     Accept: 'application/json, application/problem+json',
@@ -89,6 +91,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
   if (ifMatch) {
     headers['If-Match'] = ifMatch;
+  }
+  if (idempotencyKey) {
+    headers['Idempotency-Key'] = idempotencyKey;
   }
 
   const url = `${BASE_URL}${path}${query ? buildQueryString(query) : ''}`;

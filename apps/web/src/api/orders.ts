@@ -67,38 +67,60 @@ export const ordersApi = {
     id: string,
     input: { status: string; comment?: string },
     ifMatch: string,
+    idempotencyKey?: string,
   ): Promise<OrderWithEtag> {
     return withEtag(
       await apiRequest<OrderDetails>(`/orders/${id}/status`, {
         method: 'PATCH',
         body: input,
         ifMatch,
+        idempotencyKey,
       }),
     );
   },
 
-  async assignCourier(id: string, courierId: string, ifMatch: string): Promise<OrderWithEtag> {
+  async assignCourier(
+    id: string,
+    courierId: string,
+    ifMatch: string,
+    idempotencyKey?: string,
+  ): Promise<OrderWithEtag> {
     return withEtag(
       await apiRequest<OrderDetails>(`/orders/${id}/courier`, {
         method: 'PUT',
         body: { courierId },
         ifMatch,
+        idempotencyKey,
       }),
     );
   },
 
-  async unassignCourier(id: string, ifMatch: string): Promise<OrderWithEtag> {
+  async unassignCourier(
+    id: string,
+    ifMatch: string,
+    idempotencyKey?: string,
+  ): Promise<OrderWithEtag> {
     return withEtag(
-      await apiRequest<OrderDetails>(`/orders/${id}/courier`, { method: 'DELETE', ifMatch }),
+      await apiRequest<OrderDetails>(`/orders/${id}/courier`, {
+        method: 'DELETE',
+        ifMatch,
+        idempotencyKey,
+      }),
     );
   },
 
-  async cancel(id: string, reason: string, ifMatch: string): Promise<OrderWithEtag> {
+  async cancel(
+    id: string,
+    reason: string,
+    ifMatch: string,
+    idempotencyKey?: string,
+  ): Promise<OrderWithEtag> {
     return withEtag(
       await apiRequest<OrderDetails>(`/orders/${id}/cancel`, {
         method: 'POST',
         body: { reason },
         ifMatch,
+        idempotencyKey,
       }),
     );
   },

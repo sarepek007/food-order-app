@@ -46,8 +46,14 @@ export async function buildApp({ config, pool }: BuildAppOptions): Promise<Fasti
   await app.register(cors, {
     origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(',').map((value) => value.trim()),
     // Без этого браузер не увидит ETag и не сможет отправить If-Match.
-    exposedHeaders: ['ETag', 'Location', 'X-Request-Id'],
-    allowedHeaders: ['Content-Type', 'If-Match', 'X-Actor', 'X-Request-Id'],
+    exposedHeaders: ['ETag', 'Location', 'X-Request-Id', 'Idempotency-Replayed'],
+    allowedHeaders: [
+      'Content-Type',
+      'If-Match',
+      'X-Actor',
+      'X-Request-Id',
+      'Idempotency-Key',
+    ],
   });
 
   await app.register(swagger, {

@@ -15,6 +15,7 @@ export const ERROR_CODES = [
   'ORDER_TERMINAL',
   'ORDER_VERSION_CONFLICT',
   'COURIER_CAPACITY_EXCEEDED',
+  'IDEMPOTENCY_KEY_REUSED',
   // 422 — запрос валиден синтаксически, но неисполним по бизнес-смыслу
   'ORDER_COURIER_REQUIRED',
   'COURIER_INACTIVE',
@@ -39,6 +40,7 @@ export const ERROR_CODE_STATUS: Readonly<Record<ErrorCode, number>> = Object.fre
   ORDER_TERMINAL: 409,
   ORDER_VERSION_CONFLICT: 409,
   COURIER_CAPACITY_EXCEEDED: 409,
+  IDEMPOTENCY_KEY_REUSED: 409,
   ORDER_COURIER_REQUIRED: 422,
   COURIER_INACTIVE: 422,
   ORDER_COURIER_NOT_ASSIGNED: 422,
@@ -84,6 +86,11 @@ export interface CourierCapacityDetails {
   activeCount: number;
   limit: number;
   activeOrderIds: string[];
+}
+
+export interface IdempotencyReuseDetails {
+  key: string;
+  originalRequest: string;
 }
 
 export interface VersionConflictDetails<TOrder = unknown> {

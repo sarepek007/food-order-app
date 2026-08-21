@@ -13,6 +13,7 @@ import {
   type OrderDetails,
 } from '@food/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { idempotencyFrom } from '../http/idempotency.js';
 import { etagOf, resolveExpectedVersion } from '../http/preconditions.js';
 import type { OrderService } from '../services/order-service.js';
 
@@ -74,7 +75,11 @@ export const ordersRoutes: FastifyPluginAsyncZod<OrdersRouteOptions> = async (ap
       },
     },
     async (request, reply) => {
-      const order = await service.create(request.body, { actor: request.actor });
+      const order = await service.create(
+        request.body,
+        { actor: request.actor },
+        idempotencyFrom(request, reply),
+      );
       reply.status(201);
       reply.header('Location', `/api/v1/orders/${order.id}`);
       return sendOrder(reply, order);
@@ -124,9 +129,13 @@ export const ordersRoutes: FastifyPluginAsyncZod<OrdersRouteOptions> = async (ap
     },
     async (request, reply) => {
       const version = await expectedVersionFor(request, request.params.id, request.body.version);
-      const order = await service.changeStatus(request.params.id, request.body, version, {
-        actor: request.actor,
-      });
+      const order = await service.changeStatus(
+        request.params.id,
+        request.body,
+        version,
+        { actor: request.actor },
+        idempotencyFrom(request, reply),
+      );
       return sendOrder(reply, order);
     },
   );
@@ -145,9 +154,13 @@ export const ordersRoutes: FastifyPluginAsyncZod<OrdersRouteOptions> = async (ap
     },
     async (request, reply) => {
       const version = await expectedVersionFor(request, request.params.id, request.body.version);
-      const order = await service.assignCourier(request.params.id, request.body.courierId, version, {
-        actor: request.actor,
-      });
+      const order = await service.assignCourier(
+        request.params.id,
+        request.body.courierId,
+        version,
+        { actor: request.actor },
+        idempotencyFrom(request, reply),
+      );
       return sendOrder(reply, order);
     },
   );
@@ -166,7 +179,12 @@ export const ordersRoutes: FastifyPluginAsyncZod<OrdersRouteOptions> = async (ap
     },
     async (request, reply) => {
       const version = await expectedVersionFor(request, request.params.id, request.body?.version);
-      const order = await service.unassignCourier(request.params.id, version, { actor: request.actor });
+      const order = await service.unassignCourier(
+        request.params.id,
+        version,
+        { actor: request.actor },
+        idempotencyFrom(request, reply),
+      );
       return sendOrder(reply, order);
     },
   );
@@ -185,9 +203,13 @@ export const ordersRoutes: FastifyPluginAsyncZod<OrdersRouteOptions> = async (ap
     },
     async (request, reply) => {
       const version = await expectedVersionFor(request, request.params.id, request.body.version);
-      const order = await service.cancel(request.params.id, request.body, version, {
-        actor: request.actor,
-      });
+      const order = await service.cancel(
+        request.params.id,
+        request.body,
+        version,
+        { actor: request.actor },
+        idempotencyFrom(request, reply),
+      );
       return sendOrder(reply, order);
     },
   );

@@ -175,6 +175,30 @@ describe('изменение статуса', () => {
     expect(await screen.findByText('Изменение сохранено')).toBeInTheDocument();
   });
 
+  it('передаёт ключ повтора, одинаковый для одного и того же действия', async () => {
+    serveOrder(makeOrder({ status: 'new', version: 1 }), '"1"');
+
+    const keys: (string | null)[] = [];
+    server.use(
+      http.patch(`${API}/orders/:id/status`, ({ request }) => {
+        keys.push(request.headers.get('Idempotency-Key'));
+        return HttpResponse.json(makeOrder({ status: 'accepted', version: 2 }), {
+          headers: { ETag: '"2"' },
+        });
+      }),
+    );
+
+    const { user } = render();
+    const button = await screen.findByRole('button', { name: 'Перевести в «Принят»' });
+
+    await user.click(button);
+    await waitFor(() => expect(keys).toHaveLength(1));
+
+    expect(keys[0]).toBeTruthy();
+    // Ключ выведен из заказа, версии и действия — он воспроизводим.
+    expect(keys[0]).toMatch(/^web-[0-9a-f]{16}-/);
+  });
+
   it('передаёт имя оператора в X-Actor', async () => {
     serveOrder(makeOrder({ status: 'new' }));
 

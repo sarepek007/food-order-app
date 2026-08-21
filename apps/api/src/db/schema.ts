@@ -6,6 +6,7 @@ import {
   boolean,
   char,
   index,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -104,10 +105,27 @@ export const orderAuditLog = pgTable(
   (table) => [index('idx_audit_order_created').on(table.orderId, table.createdAt.desc(), table.id.desc())],
 );
 
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    key: text('key').primaryKey(),
+    requestHash: text('request_hash').notNull(),
+    responseStatus: integer('response_status').notNull(),
+    responseBody: jsonb('response_body').notNull(),
+    orderId: uuid('order_id').references(() => orders.id),
+    actor: text('actor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [index('idx_idempotency_expires_at').on(table.expiresAt)],
+);
+
 export type OrderRow = typeof orders.$inferSelect;
 export type NewOrderRow = typeof orders.$inferInsert;
 export type RestaurantRow = typeof restaurants.$inferSelect;
 export type CourierRow = typeof couriers.$inferSelect;
 export type AuditRow = typeof orderAuditLog.$inferSelect;
 
-export const dbSchema = { restaurants, couriers, orders, orderAuditLog };
+export type IdempotencyRow = typeof idempotencyKeys.$inferSelect;
+
+export const dbSchema = { restaurants, couriers, orders, orderAuditLog, idempotencyKeys };

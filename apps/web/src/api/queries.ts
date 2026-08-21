@@ -8,6 +8,7 @@ import {
 import type { AuditListResponse, Courier, OrderListResponse, Restaurant } from '@food/contracts';
 import { ordersApi, type OrderListParams, type OrderWithEtag } from './orders.js';
 import { ApiError } from './errors.js';
+import { idempotencyKeyFor } from './idempotency.js';
 
 
 /**
@@ -90,19 +91,24 @@ export function useOrderMutation(
 
   return useMutation({
     mutationFn: ({ input, ifMatch }: OrderMutationVariables) => {
+      // Ключ выводится из действия: повтор того же нажатия не применится
+      // дважды, а осознанно новое действие получит новый ключ.
+      const key = idempotencyKeyFor(id, ifMatch, input);
+
       switch (input.kind) {
         case 'status':
           return ordersApi.changeStatus(
             id,
             input.comment ? { status: input.status, comment: input.comment } : { status: input.status },
             ifMatch,
+            key,
           );
         case 'assign-courier':
-          return ordersApi.assignCourier(id, input.courierId, ifMatch);
+          return ordersApi.assignCourier(id, input.courierId, ifMatch, key);
         case 'unassign-courier':
-          return ordersApi.unassignCourier(id, ifMatch);
+          return ordersApi.unassignCourier(id, ifMatch, key);
         case 'cancel':
-          return ordersApi.cancel(id, input.reason, ifMatch);
+          return ordersApi.cancel(id, input.reason, ifMatch, key);
       }
     },
     onSuccess: (result) => {
