@@ -49,7 +49,8 @@ pnpm test                         # тесты всех пакетов
 Документация: [docs/API.md](docs/API.md) · интерактивно: `http://localhost:3000/docs`
 
 ```bash
-pnpm --filter @food/api dev
+pnpm --filter @food/api dev   # API на :3000
+pnpm --filter @food/web dev   # интерфейс на :5173
 ```
 
 Готовые сценарии для HTTP-клиента WebStorm — [apps/api/requests.http](apps/api/requests.http):
@@ -68,6 +69,7 @@ pnpm --filter @food/api dev
 | `pnpm --filter @food/api migrate` | применить миграции |
 | `pnpm --filter @food/api dev` | запустить API на :3000 |
 | `pnpm --filter @food/api seed` | загрузить демонстрационные данные |
+| `pnpm --filter @food/web dev` | запустить интерфейс на :5173 |
 
 ## Состояние работ
 
@@ -85,4 +87,7 @@ pnpm --filter @food/api dev
 * **M5** — воспроизводимый seed: 20 ресторанов, 20 курьеров, 200 заказов
   с согласованным журналом изменений.
 
-Итого 330 тестов. Прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).
+* **M6** — фронтенд: список с фильтрами в URL, карточка заказа с журналом,
+  все состояния интерфейса и разбор конфликта версий.
+
+Итого 411 тестов. Прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).
