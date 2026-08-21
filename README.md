@@ -36,9 +36,12 @@ docs                спецификация, план, ADR
 
 ```bash
 pnpm install
-pnpm db:up          # Postgres в Docker
-pnpm test           # тесты всех пакетов
+pnpm db:up                        # Postgres в Docker
+pnpm --filter @food/api migrate   # применить миграции
+pnpm test                         # тесты всех пакетов
 ```
+
+Схема БД и её инварианты: [docs/DATABASE.md](docs/DATABASE.md).
 
 ## Команды
 
@@ -49,9 +52,13 @@ pnpm test           # тесты всех пакетов
 | `pnpm lint` | ESLint по всему воркспейсу |
 | `pnpm format` | Prettier |
 | `pnpm db:up` / `pnpm db:down` | поднять/остановить Postgres |
+| `pnpm --filter @food/api migrate` | применить миграции |
 
 ## Состояние работ
 
-M0–M1 готовы: каркас монорепы и доменный пакет `@food/contracts`
-(граф переходов, бизнес-правила, коды ошибок, Zod-схемы) — 118 unit-тестов.
-Текущий прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).
+* **M1** — доменный пакет `@food/contracts`: граф переходов, бизнес-правила,
+  коды ошибок, Zod-схемы. 118 unit-тестов без БД.
+* **M2** — схема Postgres, раннер миграций, Drizzle-слой, конфигурация.
+  44 интеграционных теста на реальной БД.
+
+Итого 162 теста. Прогресс по майлстоунам — в [docs/PLAN.md](docs/PLAN.md).
