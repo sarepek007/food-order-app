@@ -23,9 +23,22 @@
   --color-muted: #535c6b;
   --color-faint: #616a7a;
 
-  --color-accent: #2563eb;
-  --color-accent-strong: #1d4ed8;
-  --color-accent-soft: #eef4ff;
+  /*
+   * Акцент — синий «тенгрин», цвет неба с флага Калмыкии. Контраст на всех
+   * трёх фонах выше прежнего (6.47 против 5.17), так что смена палитры
+   * улучшает читаемость, а не ухудшает.
+   */
+  --color-accent: #1a5fa8;
+  --color-accent-strong: #14497f;
+  --color-accent-soft: #eaf2fb;
+
+  /*
+   * Золото — солнце степи и цвет буддийской традиции. Только как фон
+   * и орнамент: текстом не набирается, поэтому к контрасту текста
+   * требований не предъявляет.
+   */
+  --color-gold: #f0b323;
+  --color-gold-soft: #fdf3dc;
 
   --color-danger: #b42318;
   --color-danger-soft: #fef3f2;
@@ -86,6 +99,24 @@ dialog {
 dialog::backdrop {
   background: rgb(16 23 37 / 0.5);
   backdrop-filter: blur(1px);
+}
+
+/*
+ * Орнаментальная полоса «зег» — меандр, традиционный для калмыцкого
+ * и монгольского декора. Намеренно тонкая и приглушённая: это подпись
+ * инструмента, а не элемент интерфейса, и она не должна спорить
+ * за внимание со статусами заказов.
+ */
+.ornament-strip {
+  height: 6px;
+  border-bottom: 1px solid var(--color-line);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='7' viewBox='0 0 28 7'%3E%3Cpath d='M0 6h5V2h7v4h5V2h7v4h4' fill='none' stroke='%23a98322' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom;
+  background-size: 28px 7px;
+  /* Сильно приглушено: это подпись инструмента, а не элемент интерфейса.
+     На полной яркости полоса читается как предупреждающая лента. */
+  opacity: 0.3;
 }
 
 /* Липкая шапка таблицы: при прокрутке 200 строк колонки не теряются. */

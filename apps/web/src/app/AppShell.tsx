@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { DEFAULT_ACTOR, getActor, setActor } from '@/api/client';
+import { LotusMark } from '@/components/LotusMark';
 import { CourierIcon } from '@/components/icons';
 
 /**
@@ -31,15 +32,10 @@ function ActorField() {
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur">
+      <header className="sticky top-0 z-20 bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-[110rem] items-center gap-3 px-4 py-2.5 sm:gap-6 sm:px-6">
           <NavLink to="/orders" className="flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="flex size-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white"
-            >
-              З
-            </span>
+            <LotusMark />
             <span className="hidden text-sm font-semibold sm:inline">Операционная консоль</span>
           </NavLink>
 
@@ -60,6 +56,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ActorField />
           </div>
         </div>
+
+        {/* Орнаментальная линия вместо простой границы шапки. */}
+        <div aria-hidden="true" className="ornament-strip" />
       </header>
 
       <main>{children}</main>
