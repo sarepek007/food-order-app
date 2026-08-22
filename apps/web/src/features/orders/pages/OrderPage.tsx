@@ -8,7 +8,7 @@ import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuditQuery, useOrderMutation, useOrderQuery, type OrderMutationInput } from '@/api/queries';
 import { useOrderStream } from '@/api/stream';
-import { errorMessage, isApiError, isNetworkError, type ApiError } from '@/api/errors';
+import { errorMessage, isApiError, isUnavailable, type ApiError } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { ArrowLeftIcon, ArrowRightIcon, CancelIcon, CourierIcon, MinusIcon, SwapIcon } from '@/components/icons';
 import { SlaIndicator } from '@/components/SlaIndicator';
@@ -147,7 +147,7 @@ export function OrderPage() {
           />
         ) : (
           <ErrorState
-            title={isNetworkError(orderQuery.error) ? 'Нет связи с сервером' : 'Не удалось загрузить заказ'}
+            title={isUnavailable(orderQuery.error) ? 'Сервис недоступен' : 'Не удалось загрузить заказ'}
             description={errorMessage(orderQuery.error)}
             onRetry={() => void orderQuery.refetch()}
             retrying={orderQuery.isFetching}

@@ -49,9 +49,29 @@ export class ApiError extends Error {
 /** Сеть недоступна или сервер не ответил — принципиально иной случай, чем 4xx/5xx. */
 export class NetworkError extends Error {
   constructor(cause?: unknown) {
-    super('Не удалось связаться с сервером. Проверьте подключение.');
+    super('Нет связи с сервером. Проверьте подключение к сети.');
     this.name = 'NetworkError';
     this.cause = cause;
+  }
+}
+
+/**
+ * Сервис не отвечает: запрос дошёл до прокси, но приложение за ним недоступно.
+ *
+ * Прокси в таком случае отдаёт свой ответ, а не problem+json: Vite — пустой
+ * `500 text/plain`, nginx — HTML-страницу `502`. Показывать оператору голый
+ * код состояния бессмысленно: он не говорит ни что случилось, ни что делать.
+ */
+export class ServiceUnavailableError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(
+      `Сервис временно недоступен (${status}). Изменения не сохранены. ` +
+        'Повторите через несколько секунд — если не помогает, сообщите в поддержку.',
+    );
+    this.name = 'ServiceUnavailableError';
+    this.status = status;
   }
 }
 
@@ -63,14 +83,30 @@ export function isNetworkError(error: unknown): error is NetworkError {
   return error instanceof NetworkError;
 }
 
+export function isServiceUnavailable(error: unknown): error is ServiceUnavailableError {
+  return error instanceof ServiceUnavailableError;
+}
+
+/**
+ * Для оператора «сети нет» и «сервис лежит» — одна ситуация: работать нельзя,
+ * надо повторить. Различаются только текстом, чтобы поддержке было понятнее.
+ */
+export function isUnavailable(error: unknown): boolean {
+  return isNetworkError(error) || isServiceUnavailable(error);
+}
+
 /** Текст для пользователя из любой ошибки — единая точка, чтобы не плодить формулировки. */
 export function errorMessage(error: unknown): string {
   if (isApiError(error)) return error.message;
-  if (isNetworkError(error)) return error.message;
+  if (isNetworkError(error) || isServiceUnavailable(error)) return error.message;
   if (error instanceof Error && error.message) return error.message;
   return 'Произошла непредвиденная ошибка';
 }
 
+/**
+ * Ответ, который не является problem+json. Такое приходит от прокси
+ * и промежуточных узлов, а не от приложения.
+ */
 export function toProblem(payload: unknown, status: number): ProblemDetails {
   if (isProblemDetails(payload)) {
     return payload;
@@ -80,7 +116,7 @@ export function toProblem(payload: unknown, status: number): ProblemDetails {
     type: 'about:blank',
     title: 'Ошибка запроса',
     status,
-    detail: `Сервер вернул ${status} без пояснения`,
-    code: status >= 500 ? 'INTERNAL_ERROR' : 'VALIDATION_FAILED',
+    detail: `Запрос отклонён с кодом ${status}`,
+    code: 'VALIDATION_FAILED',
   };
 }

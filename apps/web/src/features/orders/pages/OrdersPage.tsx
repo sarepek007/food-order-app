@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 import { useOrdersQuery } from '@/api/queries';
 import { useOrderStream } from '@/api/stream';
 import { useThrottled } from '@/lib/useThrottled';
-import { errorMessage, isNetworkError } from '@/api/errors';
+import { errorMessage, isUnavailable } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { EmptyState, ErrorState, RefetchingBar, TableSkeleton } from '@/components/states';
 import { FiltersPanel } from '../components/FiltersPanel';
@@ -93,7 +93,7 @@ export function OrdersPage() {
 
         {orders.isError && (
           <ErrorState
-            title={isNetworkError(orders.error) ? 'Нет связи с сервером' : 'Не удалось загрузить заказы'}
+            title={isUnavailable(orders.error) ? 'Сервис недоступен' : 'Не удалось загрузить заказы'}
             description={errorMessage(orders.error)}
             onRetry={() => void orders.refetch()}
             retrying={orders.isFetching}

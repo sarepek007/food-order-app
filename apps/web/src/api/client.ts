@@ -1,4 +1,5 @@
-import { ApiError, NetworkError, toProblem } from './errors.js';
+import { isProblemDetails } from '@food/contracts';
+import { ApiError, NetworkError, ServiceUnavailableError, toProblem } from './errors.js';
 
 const BASE_URL = import.meta.env['VITE_API_BASE_URL'] ?? '/api/v1';
 
@@ -116,6 +117,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload = await parseBody(response);
 
   if (!response.ok) {
+    // Ответ 5xx без problem+json приходит не от приложения, а от прокси
+    // перед ним: значит, сервис не отвечает, и это не ошибка запроса.
+    if (response.status >= 500 && !isProblemDetails(payload)) {
+      throw new ServiceUnavailableError(response.status);
+    }
     throw new ApiError(toProblem(payload, response.status));
   }
 

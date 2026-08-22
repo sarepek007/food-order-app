@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { API, server } from '@/test/server';
 import { problem } from '@/test/fixtures';
 import { apiRequest, buildQueryString, getActor, setActor } from './client';
-import { ApiError, NetworkError, errorMessage } from './errors';
+import { ApiError, NetworkError, ServiceUnavailableError, errorMessage } from './errors';
 
 /** Ожидаем отказ и возвращаем ошибку уже типизированной. */
 async function rejection<T = ApiError>(promise: Promise<unknown>): Promise<T> {
@@ -96,14 +96,44 @@ describe('разбор ответа', () => {
     await expect(apiRequest('/orders')).resolves.toMatchObject({ data: null });
   });
 
-  it('не-JSON ответ превращается в понятную ошибку', async () => {
+  it.each([
+    ['nginx отдаёт HTML', 502, '<html>502 Bad Gateway</html>'],
+    ['прокси Vite отдаёт пустое тело', 500, ''],
+    ['балансировщик отдаёт 503', 503, 'Service Unavailable'],
+  ])('%s — это недоступность сервиса, а не ошибка запроса', async (_label, status, body) => {
+    server.use(http.get(`${API}/orders`, () => new HttpResponse(body, { status })));
+
+    const error = await rejection<unknown>(apiRequest('/orders'));
+
+    expect(error).toBeInstanceOf(ServiceUnavailableError);
+    // Оператору нужен не код состояния, а что случилось и что делать.
+    expect(errorMessage(error)).toContain('Сервис временно недоступен');
+    expect(errorMessage(error)).toContain('Изменения не сохранены');
+    expect(errorMessage(error)).toContain(String(status));
+  });
+
+  it('5xx с problem+json остаётся ошибкой приложения', async () => {
     server.use(
-      http.get(`${API}/orders`, () => new HttpResponse('<html>502 Bad Gateway</html>', { status: 502 })),
+      http.get(`${API}/orders`, () =>
+        HttpResponse.json(problem('INTERNAL_ERROR', 500, 'Не удалось обработать запрос'), {
+          status: 500,
+        }),
+      ),
     );
 
     const error = await rejection(apiRequest('/orders'));
+
+    expect(error).toBeInstanceOf(ApiError);
     expect(error.code).toBe('INTERNAL_ERROR');
-    expect(error.message).toContain('502');
+    expect(error.message).toBe('Не удалось обработать запрос');
+  });
+
+  it('4xx без problem+json остаётся ошибкой запроса', async () => {
+    server.use(http.get(`${API}/orders`, () => new HttpResponse('nope', { status: 404 })));
+
+    const error = await rejection(apiRequest('/orders'));
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(404);
   });
 
   it('обрыв связи отличается от ответа сервера', async () => {

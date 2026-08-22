@@ -118,7 +118,7 @@ describe('загрузка карточки', () => {
     );
 
     const { user } = render();
-    expect(await screen.findByText('Нет связи с сервером')).toBeInTheDocument();
+    expect(await screen.findByText('Сервис недоступен')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Повторить' }));
     expect(await screen.findByText(/Заказ №/)).toBeInTheDocument();
@@ -517,5 +517,38 @@ describe('живое обновление карточки', () => {
 
     await user.click(screen.getByRole('button', { name: 'Понятно' }));
     expect(screen.queryByTestId('live-change-notice')).not.toBeInTheDocument();
+  });
+});
+
+describe('недоступный сервис при действии', () => {
+  it('отмена заказа объясняет, что сервис недоступен и изменения не сохранены', async () => {
+    serveOrder(makeOrder({ status: 'ready', courier: { id: 'c-1', name: 'Иван' } }), '"1"');
+    // Так отвечает прокси, когда приложение за ним недоступно: не problem+json,
+    // а собственная страница или пустое тело.
+    server.use(http.post(`${API}/orders/:id/cancel`, () => new HttpResponse('', { status: 502 })));
+
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: 'Отменить заказ' }));
+    await user.type(screen.getByLabelText('Причина отмены'), 'клиент передумал');
+    await user.click(screen.getAllByRole('button', { name: 'Отменить заказ' }).at(-1)!);
+
+    expect(await screen.findByText(/Сервис временно недоступен/)).toBeInTheDocument();
+    expect(screen.getByText(/Изменения не сохранены/)).toBeInTheDocument();
+    // Введённая причина не потеряна: оператор повторит, не набирая заново.
+    expect(screen.getByLabelText('Причина отмены')).toHaveValue('клиент передумал');
+  });
+
+  it('смена статуса при недоступном сервисе не выглядит как ошибка данных', async () => {
+    serveOrder(makeOrder({ status: 'new', version: 1 }), '"1"');
+    server.use(
+      http.patch(`${API}/orders/:id/status`, () => new HttpResponse('', { status: 500 })),
+    );
+
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: 'Перевести в «Принят»' }));
+
+    expect(await screen.findByText(/Сервис временно недоступен/)).toBeInTheDocument();
+    // Баннер бизнес-ошибки не показывается: проблема не в данных.
+    expect(screen.queryByText(/Некорректные данные/)).not.toBeInTheDocument();
   });
 });

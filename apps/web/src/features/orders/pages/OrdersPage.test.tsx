@@ -142,8 +142,18 @@ describe('состояние ошибки', () => {
 
     render();
 
-    expect(await screen.findByText('Нет связи с сервером', {}, { timeout: 3000 })).toBeInTheDocument();
-    expect(screen.getByText(/Проверьте подключение/)).toBeInTheDocument();
+    expect(await screen.findByText('Сервис недоступен', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText(/Проверьте подключение к сети/)).toBeInTheDocument();
+  });
+
+  it('недоступный сервис объясняется словами, а не кодом состояния', async () => {
+    // Так отвечает прокси, когда приложение за ним не поднялось.
+    server.use(http.get(`${API}/orders`, () => new HttpResponse('', { status: 502 })));
+
+    render();
+
+    expect(await screen.findByText('Сервис недоступен', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText(/Повторите через несколько секунд/)).toBeInTheDocument();
   });
 
   it('ошибка валидации параметров показывается пользователю', async () => {
