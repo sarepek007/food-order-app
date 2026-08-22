@@ -182,7 +182,7 @@ docs                 спецификация, план, ADR, описание A
 ## Проверка
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test    # 575 тестов, нужен Postgres
+pnpm lint && pnpm typecheck && pnpm test    # 561 тест, нужен Postgres
 pnpm test:coverage                          # то же плюс пороги покрытия
 pnpm test:e2e                               # 18 сценариев, включая проверку доступности
 ```
