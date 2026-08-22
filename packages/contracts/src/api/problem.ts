@@ -1,33 +1,8 @@
 /**
- * Машиночитаемые коды ошибок. Клиент ветвится по `code`, а не по тексту
- * сообщения: тексты меняются и локализуются, коды — часть контракта.
+ * HTTP-представление ошибки: формат RFC 9457 `application/problem+json`
+ * и отображение доменных кодов в статусы ответа.
  */
-export const ERROR_CODES = [
-  // 400 — запрос не проходит схему
-  'VALIDATION_FAILED',
-  // 404 — сущность не существует
-  'ORDER_NOT_FOUND',
-  'RESTAURANT_NOT_FOUND',
-  'COURIER_NOT_FOUND',
-  // 409 — конфликт с текущим состоянием ресурса
-  'ORDER_INVALID_TRANSITION',
-  'ORDER_NOT_CANCELLABLE',
-  'ORDER_TERMINAL',
-  'ORDER_VERSION_CONFLICT',
-  'COURIER_CAPACITY_EXCEEDED',
-  'IDEMPOTENCY_KEY_REUSED',
-  // 422 — запрос валиден синтаксически, но неисполним по бизнес-смыслу
-  'ORDER_COURIER_REQUIRED',
-  'COURIER_INACTIVE',
-  'ORDER_COURIER_NOT_ASSIGNED',
-  'RESTAURANT_INACTIVE',
-  // 428 — не передан If-Match
-  'PRECONDITION_REQUIRED',
-  // 5xx
-  'INTERNAL_ERROR',
-] as const;
-
-export type ErrorCode = (typeof ERROR_CODES)[number];
+import { isErrorCode, type ErrorCode } from '../domain/error-codes.js';
 
 /** HTTP-статус, соответствующий каждому доменному коду. */
 export const ERROR_CODE_STATUS: Readonly<Record<ErrorCode, number>> = Object.freeze({
@@ -104,10 +79,6 @@ export const PROBLEM_TYPE_BASE = 'https://food-order-app.local/problems';
 
 export function problemTypeFor(code: ErrorCode): string {
   return `${PROBLEM_TYPE_BASE}/${code.toLowerCase().replaceAll('_', '-')}`;
-}
-
-export function isErrorCode(value: unknown): value is ErrorCode {
-  return typeof value === 'string' && (ERROR_CODES as readonly string[]).includes(value);
 }
 
 export function isProblemDetails(value: unknown): value is ProblemDetails {

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router';
 import { EmptyState } from '@/components/states';
-import { OrderPage } from '@/features/orders/OrderPage';
-import { OrdersPage } from '@/features/orders/OrdersPage';
+import { OrderPage } from '@/features/orders/pages/OrderPage';
+import { OrdersPage } from '@/features/orders/pages/OrdersPage';
 import { AppShell } from './AppShell';
 
 export function App() {

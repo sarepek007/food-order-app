@@ -16,11 +16,11 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { CardSkeleton, EmptyState, ErrorState } from '@/components/states';
 import { useToast } from '@/components/Toaster';
 import { formatDateTime, formatMoney, formatPhone, formatRelative } from '@/lib/format';
-import { AuditTimeline } from './AuditTimeline';
-import { CancelDialog } from './CancelDialog';
-import { ConflictBanner, type ConflictInfo } from './ConflictBanner';
-import { CourierDialog } from './CourierDialog';
-import { LiveChangeNotice } from './LiveChangeNotice';
+import { AuditTimeline } from '../components/AuditTimeline';
+import { CancelDialog } from '../components/CancelDialog';
+import { ConflictBanner, type ConflictInfo } from '../components/ConflictBanner';
+import { CourierDialog } from '../components/CourierDialog';
+import { LiveChangeNotice } from '../components/LiveChangeNotice';
 
 /** Человекочитаемое описание попытки — для баннера конфликта. */
 function describeAttempt(input: OrderMutationInput): string {

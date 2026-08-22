@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { AUDIT_ACTIONS } from './audit.js';
-import { ORDER_STATUSES } from './order-status.js';
-import { SLA_STATES } from './sla.js';
+import { AUDIT_ACTIONS } from '../domain/audit.js';
+import { ORDER_STATUSES } from '../domain/order-status.js';
+import { SLA_STATES } from '../domain/sla.js';
 
 /* ------------------------------------------------------------------ */
 /* Примитивы                                                           */

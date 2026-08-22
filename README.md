@@ -183,12 +183,16 @@ SQL-функция нормализации побайтово повторяе�
 ## Структура
 
 ```
-packages/contracts   общий домен: граф статусов, правила, коды ошибок, Zod-схемы
+packages/contracts   общий контракт: domain/ — правила предметной области,
+                     api/ — схемы обмена; импортируется сервером и клиентом
 apps/api             REST API: routes → services → repositories, миграции, seed
-apps/web             React SPA: список, карточка, состояния интерфейса
+apps/web             React SPA: app/, api/, features/orders/, components/
 e2e                  сценарии Playwright
 docs                 спецификация, план, ADR, описание API и схемы БД
 ```
+
+Подробная карта с правилом зависимостей и подсказкой «куда класть новое» —
+[docs/STRUCTURE.md](docs/STRUCTURE.md).
 
 Слои backend зависят строго внутрь: `routes` не знают про SQL, `services`
 владеют транзакциями и блокировками, `domain` (в `contracts`) не знает
@@ -263,5 +267,6 @@ E2E_BASE_URL=http://localhost:8080 E2E_API_URL=http://localhost:8080 pnpm test:e
 | [docs/DATABASE.md](docs/DATABASE.md) | схема, индексы, инварианты, миграции |
 | [docs/PLAN.md](docs/PLAN.md) | ход работ по майлстоунам и найденные дефекты |
 | [docs/adr](docs/adr) | принятые решения: контекст → решение → альтернативы → следствия |
+| [docs/STRUCTURE.md](docs/STRUCTURE.md) | карта каталогов и правило зависимостей |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | что дальше: улучшения с критериями приёмки |
 | [docs/SPEC.md](docs/SPEC.md) | исходная спецификация |

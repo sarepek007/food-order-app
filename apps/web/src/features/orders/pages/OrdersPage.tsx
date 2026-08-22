@@ -7,9 +7,9 @@ import { useThrottled } from '@/lib/useThrottled';
 import { errorMessage, isNetworkError } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { EmptyState, ErrorState, RefetchingBar, TableSkeleton } from '@/components/states';
-import { FiltersPanel } from './FiltersPanel';
-import { Pagination } from './Pagination';
-import { ORDERS_TABLE_COLUMNS, OrdersTable } from './OrdersTable';
+import { FiltersPanel } from '../components/FiltersPanel';
+import { Pagination } from '../components/Pagination';
+import { ORDERS_TABLE_COLUMNS, OrdersTable } from '../components/OrdersTable';
 import {
   filtersFromSearchParams,
   filtersToQuery,
@@ -19,7 +19,7 @@ import {
   withFilterChange,
   type OrderFilters,
   type SortField,
-} from './filters';
+} from '../filters';
 
 /** Не чаще одного обновления списка в секунду. */
 const LIVE_REFRESH_INTERVAL_MS = 1000;

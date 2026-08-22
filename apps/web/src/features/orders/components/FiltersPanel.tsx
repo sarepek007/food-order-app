@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
 import { ClockIcon, FilterIcon, SearchIcon } from '@/components/icons';
 import { useCouriersQuery, useRestaurantsQuery } from '@/api/queries';
-import { hasActiveFilters, resetFilters, type OrderFilters } from './filters';
+import { hasActiveFilters, resetFilters, type OrderFilters } from '../filters';
 
 interface FiltersPanelProps {
   filters: OrderFilters;

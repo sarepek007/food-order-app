@@ -2,7 +2,7 @@
  * Чистые доменные правила: ни БД, ни HTTP. Один и тот же модуль использует
  * сервисный слой (для отклонения операции) и UI (для скрытия недоступных действий).
  */
-import type { ErrorCode } from './errors.js';
+import type { ErrorCode } from './error-codes.js';
 import {
   allowedTransitions,
   canTransition,

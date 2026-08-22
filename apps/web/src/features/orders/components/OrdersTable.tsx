@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { SlaIndicator } from '@/components/SlaIndicator';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatDateTime, formatMoney, formatRelative } from '@/lib/format';
-import type { OrderFilters, SortField } from './filters';
+import type { OrderFilters, SortField } from '../filters';
 
 interface OrdersTableProps {
   items: OrderListItem[];

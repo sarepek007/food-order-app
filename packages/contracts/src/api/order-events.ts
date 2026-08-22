@@ -6,8 +6,8 @@
  * заказ, а не заменяет его чтение. Лимит NOTIFY в Postgres — 8000 байт,
  * и класть туда всю карточку было бы ошибкой.
  */
-import { AUDIT_ACTION_LABELS, type AuditAction } from './audit.js';
-import { ORDER_STATUS_LABELS, type OrderStatus } from './order-status.js';
+import { AUDIT_ACTION_LABELS, type AuditAction } from '../domain/audit.js';
+import { ORDER_STATUS_LABELS, type OrderStatus } from '../domain/order-status.js';
 
 export const ORDER_CHANGED_EVENT = 'order-changed';
 export const STREAM_READY_EVENT = 'ready';

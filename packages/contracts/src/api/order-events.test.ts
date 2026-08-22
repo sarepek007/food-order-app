@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIT_ACTIONS } from './audit.js';
+import { AUDIT_ACTIONS } from '../domain/audit.js';
 import { describeOrderChange, isOrderChangeEvent, type OrderChangeEvent } from './order-events.js';
 
 function event(overrides: Partial<OrderChangeEvent> = {}): OrderChangeEvent {
