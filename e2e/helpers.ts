@@ -70,3 +70,16 @@ export async function openOrder(page: Page, orderId: string): Promise<void> {
   await page.goto(`/orders/${orderId}`);
   await page.getByText(/Заказ №/).waitFor();
 }
+
+/**
+ * Отключает поток изменений для страницы.
+ *
+ * Живые обновления снимают большую часть конфликтов версий: карточка
+ * успевает перечитать заказ. Но поток может быть недоступен — прокси разорвал
+ * соединение, вкладка ушла в фон, сеть моргнула. Защита от перезаписи обязана
+ * работать и в этом случае, поэтому сценарии конфликта проверяются
+ * с намеренно выключённым потоком.
+ */
+export async function disableOrderStream(page: Page): Promise<void> {
+  await page.route('**/orders/stream*', (route) => route.abort());
+}

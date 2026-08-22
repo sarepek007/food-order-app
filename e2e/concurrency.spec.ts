@@ -1,10 +1,18 @@
 import { expect, test } from '@playwright/test';
-import { assignCourierViaApi, createOrder, freeCourier, openOrder } from './helpers';
+import {
+  assignCourierViaApi,
+  createOrder,
+  disableOrderStream,
+  freeCourier,
+  openOrder,
+} from './helpers';
 
 test.describe('Конкурентное изменение заказа', () => {
   test('изменение второго оператора не перезаписывается молча', async ({ page, request }) => {
     const order = await createOrder(request);
     const courier = await freeCourier(request);
+
+    await disableOrderStream(page);
 
     // Оператор A открыл заказ и видит версию 1.
     await openOrder(page, order.id);
@@ -31,6 +39,7 @@ test.describe('Конкурентное изменение заказа', () => 
     const order = await createOrder(request);
     const courier = await freeCourier(request);
 
+    await disableOrderStream(page);
     await openOrder(page, order.id);
     await assignCourierViaApi(request, order.id, courier.id, order.version, 'Оператор B');
 
@@ -56,6 +65,8 @@ test.describe('Конкурентное изменение заказа', () => 
     const pageB = await contextB.newPage();
 
     try {
+      // У вкладки A поток недоступен — она остаётся с устаревшим состоянием.
+      await disableOrderStream(pageA);
       await openOrder(pageA, order.id);
       await openOrder(pageB, order.id);
 
@@ -72,6 +83,40 @@ test.describe('Конкурентное изменение заказа', () => 
       await contextA.close();
       await contextB.close();
     }
+  });
+
+  test('открытая карточка узнаёт о чужом изменении без перезагрузки', async ({ page, request }) => {
+    const order = await createOrder(request);
+    const courier = await freeCourier(request);
+
+    await openOrder(page, order.id);
+    await expect(page.getByText('версия 1')).toBeVisible();
+
+    // Изменение приходит извне — страницу никто не перезагружает.
+    await assignCourierViaApi(request, order.id, courier.id, order.version, 'Оператор B');
+
+    const notice = page.getByTestId('live-change-notice');
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText('Оператор B');
+
+    // Данные подтянулись сами: следующее действие не упрётся в конфликт.
+    await expect(page.getByTestId('order-courier')).toContainText(courier.name);
+    await expect(page.getByText('версия 2')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Перевести в «Принят»' }).click();
+    await expect(page.getByText('Изменение сохранено')).toBeVisible();
+    await expect(page.getByTestId('conflict-banner')).toBeHidden();
+  });
+
+  test('список обновляется без участия оператора', async ({ page, request }) => {
+    await page.goto('/orders?status=new&sort=createdAt&order=desc');
+    await expect(page.locator('tbody tr').first()).toBeVisible();
+
+    const marker = `E2E Поток ${Date.now()}`;
+    await createOrder(request, { customerName: marker });
+
+    // Ни клика, ни перезагрузки — новая строка приезжает сама.
+    await expect(page.getByText(marker)).toBeVisible({ timeout: 10_000 });
   });
 
   test('лимит активных доставок виден до попытки назначения', async ({ page, request }) => {

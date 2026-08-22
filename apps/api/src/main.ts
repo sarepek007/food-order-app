@@ -4,12 +4,14 @@ import { getConfig } from './config.js';
 import { createDatabase } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
 import { createPoolFromConfig } from './db/pool.js';
+import { createOrderEvents } from './realtime/order-events.js';
 import { deleteExpiredIdempotencyKeys } from './repositories/idempotency-repository.js';
 
 const config = getConfig();
 const pool = createPoolFromConfig(config);
 
-const app = await buildApp({ config, pool });
+const events = createOrderEvents(config);
+const app = await buildApp({ config, pool, events });
 
 try {
   // Миграции применяются на старте: контейнер должен подниматься одной командой,
@@ -17,9 +19,14 @@ try {
   const result = await runMigrations(pool, { log: (message) => app.log.info(message) });
   app.log.info({ applied: result.applied.length, skipped: result.skipped.length }, 'миграции проверены');
 
+  // Подписка поднимается до приёма запросов: клиент, подключившийся сразу,
+  // не должен получить поток без источника событий.
+  await events.start();
+
   await app.listen({ host: config.HOST, port: config.PORT });
 } catch (error) {
   app.log.fatal({ err: error }, 'не удалось запустить сервис');
+  await events.stop().catch(() => undefined);
   await pool.end().catch(() => undefined);
   process.exit(1);
 }
@@ -51,6 +58,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     clearInterval(cleanupTimer);
     void app
       .close()
+      .then(() => events.stop())
       .then(() => pool.end())
       .then(() => process.exit(0))
       .catch((error: unknown) => {

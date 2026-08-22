@@ -5,4 +5,5 @@ export * from './audit.js';
 export * from './search.js';
 export * from './sla.js';
 export * from './idempotency.js';
+export * from './order-events.js';
 export * from './schemas.js';

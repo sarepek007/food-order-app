@@ -12,9 +12,11 @@ import type { AppConfig } from './config.js';
 import type { DbPool } from './db/pool.js';
 import { registerActorContext } from './plugins/actor-context.js';
 import { registerErrorHandler } from './plugins/error-handler.js';
+import type { OrderEvents } from './realtime/order-events.js';
 import { healthRoutes } from './routes/health.js';
 import { ordersRoutes } from './routes/orders.js';
 import { referenceRoutes } from './routes/reference.js';
+import { streamRoutes } from './routes/stream.js';
 import { OrderService } from './services/order-service.js';
 
 export const API_PREFIX = '/api/v1';
@@ -22,9 +24,11 @@ export const API_PREFIX = '/api/v1';
 export interface BuildAppOptions {
   config: AppConfig;
   pool: DbPool;
+  /** Источник событий для потока изменений; без него поток не регистрируется. */
+  events?: OrderEvents;
 }
 
-export async function buildApp({ config, pool }: BuildAppOptions): Promise<FastifyInstance> {
+export async function buildApp({ config, pool, events }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -88,6 +92,9 @@ export async function buildApp({ config, pool }: BuildAppOptions): Promise<Fasti
       await instance.register(ordersRoutes, { service });
       await instance.register(referenceRoutes, { service });
       await instance.register(healthRoutes, { pool });
+      if (events) {
+        await instance.register(streamRoutes, { events });
+      }
     },
     { prefix: API_PREFIX },
   );

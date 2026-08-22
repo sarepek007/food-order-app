@@ -1,9 +1,14 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse, delay } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { API, server } from '@/test/server';
 import { COURIER_FREE, COURIER_FULL, makeAudit, makeOrder, problem } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
+import {
+  FakeEventSource,
+  installFakeEventSource,
+  uninstallFakeEventSource,
+} from '@/test/event-source';
 import { OrderPage } from './OrderPage';
 
 const ORDER_ID = '00000000-0000-4000-8000-000000000042';
@@ -431,5 +436,84 @@ describe('конкурентное изменение', () => {
     await waitFor(() => expect(screen.queryByTestId('conflict-banner')).not.toBeInTheDocument());
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('версия 2')).toBeInTheDocument();
+  });
+});
+
+describe('живое обновление карточки', () => {
+  beforeEach(() => {
+    installFakeEventSource();
+  });
+
+  afterEach(() => {
+    uninstallFakeEventSource();
+  });
+
+  function changeEvent(version: number, actor = 'Оператор B') {
+    return {
+      orderId: ORDER_ID,
+      action: 'STATUS_CHANGED' as const,
+      oldStatus: 'new' as const,
+      newStatus: 'accepted' as const,
+      version,
+      actor,
+      at: '2026-05-21T12:00:00.000Z',
+    };
+  }
+
+  it('подписывается на поток только по своему заказу', async () => {
+    serveOrder(makeOrder({ status: 'new', version: 1 }), '"1"');
+    render();
+    await screen.findByText(/Заказ №/);
+
+    expect(FakeEventSource.last?.url).toContain(`orderId=${ORDER_ID}`);
+  });
+
+  it('показывает, кто и что изменил, и подтягивает свежие данные', async () => {
+    let reads = 0;
+    server.use(
+      http.get(`${API}/orders/:id`, () => {
+        reads += 1;
+        const order =
+          reads === 1
+            ? makeOrder({ status: 'new', version: 1 })
+            : makeOrder({ status: 'accepted', version: 2 });
+        return HttpResponse.json(order, { headers: { ETag: `"${order.version}"` } });
+      }),
+    );
+
+    render();
+    await screen.findByText(/Заказ №/);
+
+    act(() => FakeEventSource.last!.emit('order-changed', changeEvent(2)));
+
+    const notice = await screen.findByTestId('live-change-notice');
+    expect(notice).toHaveTextContent('Заказ изменён (Оператор B)');
+    expect(notice).toHaveTextContent('статус «Новый» → «Принят»');
+
+    // Карточка перечитана: версия и статус уже актуальные.
+    await waitFor(() => expect(screen.getByTestId('order-status')).toHaveTextContent('Принят'));
+  });
+
+  it('не уведомляет о собственном изменении', async () => {
+    serveOrder(makeOrder({ status: 'accepted', version: 3 }), '"3"');
+    render();
+    await screen.findByText(/Заказ №/);
+
+    // Версия события не выше текущей — это отражение нашего же действия.
+    act(() => FakeEventSource.last!.emit('order-changed', changeEvent(3)));
+
+    await waitFor(() => expect(screen.queryByTestId('live-change-notice')).not.toBeInTheDocument());
+  });
+
+  it('уведомление скрывается по кнопке', async () => {
+    serveOrder(makeOrder({ status: 'new', version: 1 }), '"1"');
+    const { user } = render();
+    await screen.findByText(/Заказ №/);
+
+    act(() => FakeEventSource.last!.emit('order-changed', changeEvent(5)));
+    await screen.findByTestId('live-change-notice');
+
+    await user.click(screen.getByRole('button', { name: 'Понятно' }));
+    expect(screen.queryByTestId('live-change-notice')).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useOrdersQuery } from '@/api/queries';
+import { useOrderStream } from '@/api/stream';
+import { useThrottled } from '@/lib/useThrottled';
 import { errorMessage, isNetworkError } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { EmptyState, ErrorState, RefetchingBar, TableSkeleton } from '@/components/states';
@@ -18,12 +21,27 @@ import {
   type SortField,
 } from './filters';
 
+/** Не чаще одного обновления списка в секунду. */
+const LIVE_REFRESH_INTERVAL_MS = 1000;
+
 export function OrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const query = useMemo(() => filtersToQuery(filters), [filters]);
   const orders = useOrdersQuery(query);
+
+  // Живое обновление списка. Пачка событий подряд (оператор ведёт заказ
+  // по конвейеру) не должна превращаться в шторм запросов.
+  const queryClient = useQueryClient();
+  const refreshList = useThrottled(
+    useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }, [queryClient]),
+    LIVE_REFRESH_INTERVAL_MS,
+  );
+
+  useOrderStream({ onChange: refreshList, onReconnect: refreshList });
 
   const applyFilters = useCallback(
     (next: OrderFilters) => {

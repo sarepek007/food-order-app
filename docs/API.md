@@ -18,6 +18,7 @@
 | `POST` | `/orders/{id}/cancel` | отменить заказ (нужна причина) |
 | `GET` | `/restaurants` | справочник ресторанов |
 | `GET` | `/couriers` | справочник курьеров с текущей загрузкой |
+| `GET` | `/orders/stream` | поток изменений (Server-Sent Events) |
 | `GET` | `/health` | готовность сервиса |
 
 ## Заголовки
@@ -28,6 +29,8 @@
 | `If-Match: "7"` | запрос | версия, на которой клиент строил решение; обязателен для изменений |
 | `If-Match: *` | запрос | применить поверх текущего состояния |
 | `X-Actor` | запрос | имя оператора для журнала (UTF-8 или процентное кодирование) |
+| `Idempotency-Key` | запрос | делает мутацию повторяемой: повтор вернёт исходный ответ |
+| `Idempotency-Replayed: true` | ответ | результат воспроизведён, изменение не применялось повторно |
 | `Idempotency-Key` | запрос | помечает повторяемую мутацию; 8–255 печатаемых ASCII-символов |
 | `Idempotency-Replayed: true` | ответ | изменение уже применялось, это воспроизведение |
 | `X-Request-Id` | запрос | идентификатор запроса, возвращается в теле ошибки |
@@ -85,6 +88,7 @@ page=1&pageSize=25         pageSize не больше 100
 | `ORDER_TERMINAL` | 409 | заказ доставлен или отменён |
 | `ORDER_VERSION_CONFLICT` | 409 | версия устарела; в деталях — что изменилось |
 | `COURIER_CAPACITY_EXCEEDED` | 409 | у курьера уже максимум активных доставок |
+| `IDEMPOTENCY_KEY_REUSED` | 409 | тот же `Idempotency-Key` с другим запросом |
 | `ORDER_COURIER_REQUIRED` | 422 | нельзя перейти в `ready` без курьера |
 | `COURIER_INACTIVE`, `RESTAURANT_INACTIVE` | 422 | справочная сущность отключена |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | тот же ключ повтора использован для другого запроса |
@@ -112,6 +116,23 @@ PATCH /orders/{id}/status   If-Match: "8"   Idempotency-Key: abc12345   (дру�
 
 Без ключа поведение прежнее: повтор упрётся в конфликт версий.
 Подробности: [ADR 0012](adr/0012-idempotency.md).
+
+## Поток изменений
+
+```
+GET /orders/stream                 → text/event-stream
+GET /orders/stream?orderId=<uuid>  → только события этого заказа
+
+event: ready
+data: {"watched":"all"}
+
+event: order-changed
+data: {"orderId":"...","action":"STATUS_CHANGED","oldStatus":"new",
+       "newStatus":"accepted","version":2,"actor":"Анна","at":"..."}
+```
+
+Событие отправляется после фиксации транзакции и сообщает повод перечитать
+заказ, а не заменяет чтение. Переподключение выполняет браузер.
 
 ## Типовой поток изменения
 

@@ -1,7 +1,13 @@
-import { ORDER_STATUS_LABELS, nextProgressStatuses, type OrderStatus } from '@food/contracts';
+import {
+  ORDER_STATUS_LABELS,
+  nextProgressStatuses,
+  type OrderChangeEvent,
+  type OrderStatus,
+} from '@food/contracts';
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuditQuery, useOrderMutation, useOrderQuery, type OrderMutationInput } from '@/api/queries';
+import { useOrderStream } from '@/api/stream';
 import { errorMessage, isApiError, isNetworkError, type ApiError } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { ArrowLeftIcon, ArrowRightIcon, CancelIcon, CourierIcon, MinusIcon, SwapIcon } from '@/components/icons';
@@ -14,6 +20,7 @@ import { AuditTimeline } from './AuditTimeline';
 import { CancelDialog } from './CancelDialog';
 import { ConflictBanner, type ConflictInfo } from './ConflictBanner';
 import { CourierDialog } from './CourierDialog';
+import { LiveChangeNotice } from './LiveChangeNotice';
 
 /** Человекочитаемое описание попытки — для баннера конфликта. */
 function describeAttempt(input: OrderMutationInput): string {
@@ -42,8 +49,38 @@ export function OrderPage() {
   const [actionError, setActionError] = useState<ApiError | null>(null);
   const [courierDialog, setCourierDialog] = useState(false);
   const [cancelDialog, setCancelDialog] = useState(false);
+  const [liveChange, setLiveChange] = useState<OrderChangeEvent | null>(null);
 
   const etag = orderQuery.data?.etag ?? null;
+  const currentVersion = orderQuery.data?.order.version ?? 0;
+
+  const handleLiveChange = useCallback(
+    (event: OrderChangeEvent) => {
+      // Своё же изменение приходит тем же потоком: его версия не выше той,
+      // что уже лежит в кэше, — показывать о нём уведомление незачем.
+      if (event.version !== null && event.version <= currentVersion) {
+        return;
+      }
+
+      setLiveChange(event);
+      void orderQuery.refetch();
+      void auditQuery.refetch();
+    },
+    [currentVersion, orderQuery, auditQuery],
+  );
+
+  const handleReconnect = useCallback(() => {
+    // За время обрыва события могли пройти мимо — перечитываем состояние.
+    void orderQuery.refetch();
+    void auditQuery.refetch();
+  }, [orderQuery, auditQuery]);
+
+  useOrderStream({
+    orderId: id,
+    onChange: handleLiveChange,
+    onReconnect: handleReconnect,
+    enabled: Boolean(id),
+  });
 
   const run = useCallback(
     (input: OrderMutationInput, options: { force?: boolean } = {}) => {
@@ -57,6 +94,7 @@ export function OrderPage() {
         {
           onSuccess: () => {
             setConflict(null);
+            setLiveChange(null);
             setCourierDialog(false);
             setCancelDialog(false);
             toast.success('Изменение сохранено');
@@ -153,6 +191,10 @@ export function OrderPage() {
           {`версия ${order.version}`}
         </span>
       </header>
+
+      {liveChange && !conflict && (
+        <LiveChangeNotice event={liveChange} onDismiss={() => setLiveChange(null)} />
+      )}
 
       {conflict && (
         <ConflictBanner
