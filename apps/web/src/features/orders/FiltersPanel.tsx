@@ -49,19 +49,30 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
       className="rounded-xl bg-surface p-4 shadow-card ring-1 ring-line"
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(16rem,2fr)_repeat(2,minmax(9rem,1fr))_auto_auto]">
-        <label className="flex flex-col gap-1">
-          <span className={LABEL}>Поиск по адресу</span>
+        {/* Подсказка вынесена из <label>: внутри она попала бы в доступное
+            имя поля, и скринридер читал бы её как часть подписи. */}
+        <div className="flex flex-col gap-1">
+          <label htmlFor="orders-search" className={LABEL}>
+            Поиск по адресу
+          </label>
           <span className="relative flex items-center">
             <SearchIcon className="pointer-events-none absolute left-2.5 text-faint" />
             <input
+              id="orders-search"
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Например: Лениский проспкт 12"
+              aria-describedby="orders-search-hint"
+              placeholder="Например: Ленинский проспект, 12"
               className={`${FIELD} h-9 w-full pl-8`}
             />
           </span>
-        </label>
+          {/* Терпимость к опечаткам названа словами, а не показана опечаткой
+              в примере: такой пример читается как небрежность, а не как приём. */}
+          <span id="orders-search-hint" className="text-[11px] text-muted">
+            Находит и при ошибках в наборе: «Лениский проспкт» тоже сработает
+          </span>
+        </div>
 
         <label className="flex flex-col gap-1">
           <span className={LABEL}>Ресторан</span>
