@@ -42,6 +42,21 @@ describe('чтение фильтров из адреса', () => {
     expect(parse('sort=totalAmount').sort).toBe('totalAmount');
   });
 
+  it.each([
+    ['нечисловая сумма', 'minAmount=zzz', 'minAmount'],
+    ['отрицательная сумма', 'minAmount=-10', 'minAmount'],
+    ['мусор вместо даты', 'createdFrom=вчера', 'createdFrom'],
+    ['несуществующая дата', 'createdTo=2026-02-31', 'createdTo'],
+    ['дата в чужом формате', 'createdFrom=01.05.2026', 'createdFrom'],
+  ])('отбрасывает %s: иначе список навсегда упрётся в ошибку', (_label, search, field) => {
+    expect(parse(search)[field as 'minAmount']).toBe('');
+  });
+
+  it('корректные сумму и дату сохраняет', () => {
+    expect(parse('minAmount=100.5').minAmount).toBe('100.5');
+    expect(parse('createdFrom=2026-05-01').createdFrom).toBe('2026-05-01');
+  });
+
   it('защищается от некорректной страницы', () => {
     expect(parse('page=0').page).toBe(1);
     expect(parse('page=-3').page).toBe(1);
@@ -100,7 +115,7 @@ describe('преобразование в запрос к API', () => {
     });
   });
 
-  it('приводит суммы к числам, а даты — к ISO', () => {
+  it('приводит суммы к числам, а даты передаёт как есть', () => {
     const query = filtersToQuery({
       ...DEFAULT_FILTERS,
       minAmount: '100.5',
@@ -109,9 +124,10 @@ describe('преобразование в запрос к API', () => {
     });
 
     expect(query.minAmount).toBe(100.5);
-    expect(query.createdFrom).toMatch(/^2026-05-01T/);
-    // Верхняя граница включает весь день, иначе заказы за сегодня теряются.
-    expect(query.createdTo).toMatch(/^2026-05-2\dT/);
+    // Раскрытие даты в целые сутки — задача сервера: одно правило на обе
+    // стороны вместо двух, расходящихся на часовой пояс.
+    expect(query.createdFrom).toBe('2026-05-01');
+    expect(query.createdTo).toBe('2026-05-20');
   });
 
   it('обрезает пробелы в поисковом запросе', () => {

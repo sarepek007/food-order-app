@@ -1,7 +1,10 @@
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
+  type UseInfiniteQueryResult,
+  type InfiniteData,
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
@@ -42,10 +45,25 @@ export function useOrderQuery(id: string): UseQueryResult<OrderWithEtag, Error> 
   });
 }
 
-export function useAuditQuery(id: string): UseQueryResult<AuditListResponse, Error> {
-  return useQuery({
+/** Сколько событий журнала загружается за раз. Верхний предел API — 100. */
+export const AUDIT_PAGE_SIZE = 100;
+
+/**
+ * Журнал грузится страницами.
+ *
+ * Раньше запрашивалась одна страница на 100 записей, и у заказа с бо́льшей
+ * историей остальное пропадало молча — оператор не видел ни событий,
+ * ни признака, что они есть.
+ */
+export function useAuditQuery(
+  id: string,
+): UseInfiniteQueryResult<InfiniteData<AuditListResponse>, Error> {
+  return useInfiniteQuery({
     queryKey: queryKeys.audit(id),
-    queryFn: ({ signal }) => ordersApi.audit(id, { order: 'desc', pageSize: 100 }, signal),
+    queryFn: ({ pageParam, signal }) =>
+      ordersApi.audit(id, { order: 'desc', page: pageParam, pageSize: AUDIT_PAGE_SIZE }, signal),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     enabled: Boolean(id),
   });
 }

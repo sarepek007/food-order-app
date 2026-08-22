@@ -191,3 +191,54 @@ describe('listOrdersQuerySchema', () => {
     expect(listOrdersQuerySchema.safeParse({ orderBy: 'createdAt' }).success).toBe(false);
   });
 });
+
+describe('границы диапазона дат', () => {
+  it('дата без времени раскрывается в целые сутки', () => {
+    const parsed = listOrdersQuerySchema.parse({
+      createdFrom: '2026-08-22',
+      createdTo: '2026-08-22',
+    });
+
+    // Иначе фильтр «за один день» схлопывался бы в одну точку и не находил ничего.
+    expect(parsed.createdFrom?.toISOString()).toBe('2026-08-22T00:00:00.000Z');
+    expect(parsed.createdTo?.toISOString()).toBe('2026-08-22T23:59:59.999Z');
+  });
+
+  it('однодневный диапазон не считается перевёрнутым', () => {
+    expect(
+      listOrdersQuerySchema.safeParse({ createdFrom: '2026-08-22', createdTo: '2026-08-22' }).success,
+    ).toBe(true);
+  });
+
+  it('полная метка времени принимается как есть', () => {
+    const parsed = listOrdersQuerySchema.parse({ createdTo: '2026-08-22T10:30:00.000Z' });
+    expect(parsed.createdTo?.toISOString()).toBe('2026-08-22T10:30:00.000Z');
+  });
+
+  it('метка с часовым поясом не сдвигается', () => {
+    const parsed = listOrdersQuerySchema.parse({ createdFrom: '2026-08-22T12:00:00+03:00' });
+    expect(parsed.createdFrom?.toISOString()).toBe('2026-08-22T09:00:00.000Z');
+  });
+
+  it('перевёрнутый диапазон по-прежнему отклоняется', () => {
+    expect(
+      listOrdersQuerySchema.safeParse({ createdFrom: '2026-08-23', createdTo: '2026-08-22' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('несуществующие даты', () => {
+  it.each(['2026-02-31', '2026-04-31', '2026-13-01', '2026-00-10'])(
+    'отклоняет %s вместо молчаливого переноса на другой день',
+    (value) => {
+      expect(listOrdersQuerySchema.safeParse({ createdFrom: value }).success).toBe(false);
+    },
+  );
+
+  it('високосный год разбирается правильно', () => {
+    expect(listOrdersQuerySchema.parse({ createdFrom: '2028-02-29' }).createdFrom?.toISOString()).toBe(
+      '2028-02-29T00:00:00.000Z',
+    );
+    expect(listOrdersQuerySchema.safeParse({ createdFrom: '2026-02-29' }).success).toBe(false);
+  });
+});

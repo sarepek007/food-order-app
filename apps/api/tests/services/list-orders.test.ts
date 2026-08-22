@@ -139,6 +139,24 @@ describe('фильтрация', () => {
     expect(page.total).toBe(2);
   });
 
+  it('фильтр за один день находит заказы этого дня', async () => {
+    // Дата без времени раскрывается в целые сутки: раньше окно схлопывалось
+    // в полночь и такой фильтр возвращал пустой результат.
+    const page = await service.list(query({ createdFrom: '2026-05-03', createdTo: '2026-05-03' }));
+
+    expect(page.total).toBe(1);
+    expect(page.items[0]?.deliveryAddress).toContain('Королёва');
+  });
+
+  it('суммы по дням сходятся с общим количеством', async () => {
+    const days = ['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05'];
+    const perDay = await Promise.all(
+      days.map(async (day) => (await service.list(query({ createdFrom: day, createdTo: day }))).total),
+    );
+
+    expect(perDay.reduce((sum, count) => sum + count, 0)).toBe(5);
+  });
+
   it('комбинирует фильтры по И', async () => {
     const page = await service.list(query({ restaurantId: fixture.mario, status: 'ready' }));
     expect(page.total).toBe(1);

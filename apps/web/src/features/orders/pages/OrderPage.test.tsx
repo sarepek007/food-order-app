@@ -573,3 +573,55 @@ describe('журнал: заказ создан сразу с курьером',
     expect(within(history).getByText(/курьер Иван Соколов/)).toBeInTheDocument();
   });
 });
+
+describe('длинный журнал', () => {
+  function auditPage(page: number, total: number, count: number) {
+    return {
+      items: makeAudit(
+        Array.from({ length: count }, (_, index) => ({
+          id: String(page * 1000 + index),
+          comment: `событие ${page}-${index}`,
+        })),
+      ),
+      page,
+      pageSize: 100,
+      total,
+      totalPages: Math.ceil(total / 100),
+    };
+  }
+
+  it('сообщает, что показаны не все события, и догружает остальные', async () => {
+    serveOrder();
+    server.use(
+      http.get(`${API}/orders/:id/audit`, ({ request }) => {
+        const page = Number(new URL(request.url).searchParams.get('page') ?? 1);
+        return HttpResponse.json(page === 1 ? auditPage(1, 106, 100) : auditPage(2, 106, 6));
+      }),
+    );
+
+    const { user } = render();
+    await screen.findByText(/Заказ №/);
+
+    // Раньше остаток истории пропадал молча.
+    expect(await screen.findByText('Показаны 100 из 106 событий')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Показать ещё' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Показать ещё' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText('«событие 2-5»')).toBeInTheDocument();
+  });
+
+  it('короткий журнал показывается целиком без лишних элементов', async () => {
+    serveOrder();
+    serveAudit([{ action: 'ORDER_CREATED', oldStatus: null, newStatus: 'new' }]);
+
+    render();
+    await screen.findByText(/Заказ №/);
+
+    expect(await screen.findByText('Заказ создан')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Показать ещё' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Показаны .* из /)).not.toBeInTheDocument();
+  });
+});

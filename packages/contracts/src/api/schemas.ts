@@ -42,6 +42,37 @@ function csvArray<T extends z.ZodTypeAny>(item: T) {
   }, z.array(item).optional());
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Дата без времени означает календарный день целиком.
+ *
+ * `z.coerce.date()` превращает «2026-08-22» в полночь UTC для обеих границ,
+ * поэтому фильтр «за один день» возвращал пустой результат: окно схлопывалось
+ * в одну точку. Нижняя граница раскрывается в начало суток, верхняя — в конец.
+ *
+ * Отсчёт ведётся в UTC — так же, как данные хранятся. Полная метка времени
+ * с зоной по-прежнему принимается как есть, без раскрытия.
+ */
+function dayBoundarySchema(edge: 'start' | 'end') {
+  const time = edge === 'start' ? '00:00:00.000' : '23:59:59.999';
+
+  return z.preprocess((value) => {
+    if (typeof value === 'string' && DATE_ONLY.test(value)) {
+      const parsed = new Date(`${value}T${time}Z`);
+
+      // Несуществующая дата не отвергается движком, а переносится:
+      // «2026-02-31» становится 3 марта. Молчаливый сдвиг хуже ошибки,
+      // поэтому проверяем обратным преобразованием.
+      if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+        return new Date('несуществующая дата');
+      }
+      return parsed;
+    }
+    return value;
+  }, z.coerce.date().optional());
+}
+
 const booleanQuerySchema = z.preprocess((value) => {
   if (value === undefined || value === null || value === '') return undefined;
   if (typeof value === 'boolean') return value;
@@ -123,8 +154,8 @@ export const listOrdersQuerySchema = z
     q: z.string().trim().max(200).optional(),
     minAmount: z.coerce.number().nonnegative().optional(),
     maxAmount: z.coerce.number().nonnegative().optional(),
-    createdFrom: z.coerce.date().optional(),
-    createdTo: z.coerce.date().optional(),
+    createdFrom: dayBoundarySchema('start'),
+    createdTo: dayBoundarySchema('end'),
     sort: z.enum(ORDER_SORT_FIELDS).default('createdAt'),
     order: z.enum(['asc', 'desc']).default('desc'),
     page: z.coerce.number().int().positive().default(1),

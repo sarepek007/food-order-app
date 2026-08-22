@@ -55,6 +55,32 @@ function parsePositiveInt(raw: string | null, fallback: number): number {
 }
 
 /**
+ * Состояние, прочитанное из адреса, обязано быть корректным.
+ *
+ * Адрес приходит извне: его правят руками, копируют кусками, присылают
+ * в переписке. Непроверенное значение уходило в запрос как есть, сервер
+ * отвечал 400, и список оставался в ошибке до ручного сброса фильтров.
+ */
+function parseAmount(raw: string | null): string {
+  if (!raw) return '';
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? raw : '';
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDate(raw: string | null): string {
+  if (!raw || !DATE_ONLY.test(raw)) return '';
+
+  // Формат верный, но дата может не существовать. JS не отвергает такие
+  // значения, а переносит их: «2026-02-31» превращается в 3 марта.
+  // Ловим это обратным преобразованием.
+  const parsed = new Date(`${raw}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10) === raw ? raw : '';
+}
+
+/**
  * Состояние фильтров живёт в адресной строке: ссылку на выборку можно
  * переслать коллеге, а F5 не сбрасывает работу оператора.
  */
@@ -69,10 +95,10 @@ export function filtersFromSearchParams(params: URLSearchParams): OrderFilters {
     unassigned: params.get('unassigned') === 'true',
     overdue: params.get('overdue') === 'true',
     q: params.get('q') ?? '',
-    minAmount: params.get('minAmount') ?? '',
-    maxAmount: params.get('maxAmount') ?? '',
-    createdFrom: params.get('createdFrom') ?? '',
-    createdTo: params.get('createdTo') ?? '',
+    minAmount: parseAmount(params.get('minAmount')),
+    maxAmount: parseAmount(params.get('maxAmount')),
+    createdFrom: parseDate(params.get('createdFrom')),
+    createdTo: parseDate(params.get('createdTo')),
     sort: (ORDER_SORT_FIELDS as readonly string[]).includes(sort ?? '')
       ? (sort as SortField)
       : DEFAULT_FILTERS.sort,
@@ -121,8 +147,11 @@ export function filtersToQuery(filters: OrderFilters): OrderListParams {
   if (filters.q.trim()) query.q = filters.q.trim();
   if (filters.minAmount) query.minAmount = Number(filters.minAmount);
   if (filters.maxAmount) query.maxAmount = Number(filters.maxAmount);
-  if (filters.createdFrom) query.createdFrom = new Date(filters.createdFrom).toISOString();
-  if (filters.createdTo) query.createdTo = new Date(`${filters.createdTo}T23:59:59.999`).toISOString();
+  // Даты уходят как есть: раскрытие в целые сутки делает сервер, и правило
+  // остаётся одно на обе стороны. Раньше клиент расширял только верхнюю
+  // границу, причём по местному времени, и окно съезжало на часовой пояс.
+  if (filters.createdFrom) query.createdFrom = filters.createdFrom;
+  if (filters.createdTo) query.createdTo = filters.createdTo;
 
   return query;
 }

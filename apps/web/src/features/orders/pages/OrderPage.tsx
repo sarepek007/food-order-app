@@ -54,6 +54,10 @@ export function OrderPage() {
   const etag = orderQuery.data?.etag ?? null;
   const currentVersion = orderQuery.data?.order.version ?? 0;
 
+  // Журнал приходит страницами: склеиваем загруженные.
+  const auditEntries = auditQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const auditTotal = auditQuery.data?.pages[0]?.total ?? 0;
+
   const handleLiveChange = useCallback(
     (event: OrderChangeEvent) => {
       // Своё же изменение приходит тем же потоком: его версия не выше той,
@@ -356,12 +360,29 @@ export function OrderPage() {
             />
           )}
 
-          {auditQuery.data && auditQuery.data.items.length === 0 && (
-            <EmptyState title="Событий пока нет" />
-          )}
+          {auditQuery.data && auditEntries.length === 0 && <EmptyState title="Событий пока нет" />}
 
-          {auditQuery.data && auditQuery.data.items.length > 0 && (
-            <AuditTimeline entries={auditQuery.data.items} />
+          {auditEntries.length > 0 && (
+            <>
+              <AuditTimeline entries={auditEntries} />
+
+              {auditQuery.hasNextPage && (
+                <div className="mt-4 flex flex-col items-start gap-2 border-t border-line pt-4">
+                  {/* Раньше остаток истории пропадал молча — теперь видно,
+                      что показано не всё, и его можно догрузить. */}
+                  <p className="text-xs text-muted">
+                    {`Показаны ${auditEntries.length} из ${auditTotal} событий`}
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => void auditQuery.fetchNextPage()}
+                    loading={auditQuery.isFetchingNextPage}
+                  >
+                    Показать ещё
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
