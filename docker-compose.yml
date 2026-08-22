@@ -29,6 +29,9 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    # Явный тег: тот же образ переиспользует сервис seed, иначе он собирался бы
+    # отдельно и легко оставался устаревшим после пересборки api.
+    image: food-order-app-api:latest
     container_name: food-order-api
     environment:
       NODE_ENV: production
@@ -81,6 +84,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    image: food-order-app-api:latest
     container_name: food-order-seed
     environment:
       NODE_ENV: production

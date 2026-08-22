@@ -32,7 +32,7 @@ X-Actor: {{actor}}
 {
   "customerName": "Пётр Клиентов",
   "restaurantId": "{{restaurantId}}",
-  "deliveryAddress": "Ленинский проспект, д. 12, кв. 45",
+  "deliveryAddress": "ул. Юрия Клыкова, д. 12, кв. 45",
   "totalAmount": "1290.50"
 }
 
@@ -141,7 +141,7 @@ If-Match: {{etag}}
 GET {{baseUrl}}/orders/{{orderId}}/audit?order=asc
 
 ### 12. Поиск по адресу с опечатками
-GET {{baseUrl}}/orders?q=Лениский проспкт 12&sort=relevance
+GET {{baseUrl}}/orders?q=Клыкава&sort=relevance
 
 > {%
     client.test("нечёткий поиск находит адрес", function () {

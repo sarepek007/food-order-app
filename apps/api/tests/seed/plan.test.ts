@@ -143,9 +143,11 @@ describe('объём и распределение', () => {
 
   it('использует разные варианты написания адресов', () => {
     const addresses = generated.orders.map((order) => order.deliveryAddress);
+    // Одна улица в разных написаниях — на этом держится демонстрация поиска.
     expect(addresses.some((address) => address.includes('ул. Ленина'))).toBe(true);
     expect(addresses.some((address) => address.includes('улица Ленина'))).toBe(true);
-    expect(addresses.some((address) => address.includes('Королёва'))).toBe(true);
+    // Различие ё/е тоже должно встречаться в данных.
+    expect(addresses.some((address) => address.includes('Молодёжный'))).toBe(true);
   });
 
   it('генерирует суммы в разумном диапазоне', () => {

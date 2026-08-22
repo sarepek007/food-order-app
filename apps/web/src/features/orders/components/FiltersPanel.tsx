@@ -63,14 +63,14 @@ export function FiltersPanel({ filters, onChange, onReset, total }: FiltersPanel
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               aria-describedby="orders-search-hint"
-              placeholder="Например: Ленинский проспект, 12"
+              placeholder="Например: ул. Клыкова, 12"
               className={`${FIELD} h-9 w-full pl-8`}
             />
           </span>
           {/* Терпимость к опечаткам названа словами, а не показана опечаткой
               в примере: такой пример читается как небрежность, а не как приём. */}
           <span id="orders-search-hint" className="text-[11px] text-muted">
-            Находит и при ошибках в наборе: «Лениский проспкт» тоже сработает
+            Находит и при ошибках в наборе: «Гордовикова» тоже сработает
           </span>
         </div>
 

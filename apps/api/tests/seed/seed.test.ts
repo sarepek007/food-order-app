@@ -188,13 +188,13 @@ describe('состояние схемы после загрузки', () => {
 
 describe('данные пригодны для демонстрации', () => {
   it('нечёткий поиск находит адрес с опечатками', async () => {
-    const page = await service.list(listOrdersQuerySchema.parse({ q: 'Лениский проспкт' }));
+    const page = await service.list(listOrdersQuerySchema.parse({ q: 'Гордовикова' }));
     expect(page.total).toBeGreaterThan(0);
   });
 
   it('поиск не зависит от ё/е', async () => {
-    const withYo = await service.list(listOrdersQuerySchema.parse({ q: 'Королёва' }));
-    const withoutYo = await service.list(listOrdersQuerySchema.parse({ q: 'Королева' }));
+    const withYo = await service.list(listOrdersQuerySchema.parse({ q: 'Молодёжный' }));
+    const withoutYo = await service.list(listOrdersQuerySchema.parse({ q: 'Молодежный' }));
     expect(withYo.total).toBeGreaterThan(0);
     expect(withoutYo.total).toBe(withYo.total);
   });
