@@ -60,7 +60,7 @@ services:
       postgres:
         condition: service_healthy
     profiles: ['tools']
-    command: ['node', 'apps/api/dist/seed/seed-cli.js']
+    command: ['node', 'dist/seed/seed-cli.js']
 
   web:
     build:
@@ -72,6 +72,13 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      # busybox wget есть в nginx:alpine; -q -O- не пишет файлов.
+      test: ['CMD-SHELL', 'wget -q -O- http://127.0.0.1/ > /dev/null || exit 1']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     restart: unless-stopped
 
 volumes:

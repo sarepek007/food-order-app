@@ -13,6 +13,8 @@ const { values } = parseArgs({
     keep: { type: 'boolean', default: false },
     help: { type: 'boolean', default: false },
   },
+  // pnpm пробрасывает разделитель «--» как позиционный аргумент.
+  allowPositionals: true,
 });
 
 if (values.help) {

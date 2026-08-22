@@ -14,7 +14,17 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
+      // Точки входа и CLI проверяются запуском, а не юнит-тестами.
       exclude: ['src/**/*.test.ts', 'src/**/*-cli.ts', 'src/main.ts'],
+      reporter: ['text-summary', 'html', 'lcov'],
+      // Пороги чуть ниже текущего покрытия: защита от регрессии,
+      // а не гонка за процентами.
+      thresholds: {
+        statements: 90,
+        branches: 85,
+        functions: 88,
+        lines: 90,
+      },
     },
   },
 });

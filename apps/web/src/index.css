@@ -15,8 +15,13 @@
 
   --color-ink: #101725;
   --color-ink-soft: #3c4657;
-  --color-muted: #6b7688;
-  --color-faint: #9aa4b4;
+  /*
+   * Приглушённые тона подобраны расчётом контраста, а не на глаз:
+   * оба проходят WCAG AA (4.5:1) на всех трёх фонах, включая самый тёмный
+   * из них — canvas. Прежние #6b7688 и #9aa4b4 давали 4.13 и 2.27.
+   */
+  --color-muted: #535c6b;
+  --color-faint: #616a7a;
 
   --color-accent: #2563eb;
   --color-accent-strong: #1d4ed8;

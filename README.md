@@ -182,9 +182,15 @@ docs                 спецификация, план, ADR, описание A
 ## Проверка
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test    # 549 тестов, нужен Postgres
-pnpm test:e2e                               # 13 сценариев в браузере
+pnpm lint && pnpm typecheck && pnpm test    # 575 тестов, нужен Postgres
+pnpm test:coverage                          # то же плюс пороги покрытия
+pnpm test:e2e                               # 18 сценариев, включая проверку доступности
 ```
+
+Покрытие удерживается порогами в конфигурации каждого пакета: прогон падает,
+если оно просело относительно достигнутого. Доступность проверяется `axe`
+на пяти состояниях интерфейса. Поведение блокировки под нагрузкой —
+`pnpm --filter @food/api load:courier`.
 
 E2E по умолчанию поднимают dev-серверы сами. Против стека в Docker:
 
@@ -199,6 +205,7 @@ E2E_BASE_URL=http://localhost:8080 E2E_API_URL=http://localhost:8080 pnpm test:e
 | Команда | Что делает |
 |---------|------------|
 | `pnpm test` | тесты всех пакетов |
+| `pnpm test:coverage` | то же с проверкой порогов покрытия |
 | `pnpm test:e2e` | сценарии Playwright |
 | `pnpm typecheck` | строгая проверка типов |
 | `pnpm lint` / `pnpm format` | ESLint / Prettier |

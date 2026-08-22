@@ -244,7 +244,7 @@ export function OrderPage() {
 
               <dt className="text-muted">Курьер</dt>
               <dd data-testid="order-courier">
-                {order.courier?.name ?? <span className="text-slate-400">не назначен</span>}
+                {order.courier?.name ?? <span className="text-faint">не назначен</span>}
               </dd>
 
               <dt className="text-muted">Адрес доставки</dt>
