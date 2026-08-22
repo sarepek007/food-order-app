@@ -28,7 +28,9 @@ function describe(entry: AuditEntry): string {
     case 'ORDER_CANCELLED':
       return `${ORDER_STATUS_LABELS[entry.oldStatus ?? 'new']} → ${ORDER_STATUS_LABELS.cancelled}`;
     case 'ORDER_CREATED':
-      return '';
+      // Курьер может быть назначен прямо при создании — иначе эта запись
+      // теряется: отдельного события COURIER_ASSIGNED в таком случае нет.
+      return entry.newCourier ? `курьер ${entry.newCourier.name}` : '';
   }
 }
 

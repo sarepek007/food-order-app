@@ -552,3 +552,24 @@ describe('недоступный сервис при действии', () => {
     expect(screen.queryByText(/Некорректные данные/)).not.toBeInTheDocument();
   });
 });
+
+describe('журнал: заказ создан сразу с курьером', () => {
+  it('показывает курьера в записи о создании', async () => {
+    serveOrder(makeOrder({ courier: { id: 'c-1', name: 'Иван Соколов' } }));
+    serveAudit([
+      {
+        action: 'ORDER_CREATED',
+        oldStatus: null,
+        newStatus: 'new',
+        newCourier: { id: 'c-1', name: 'Иван Соколов' },
+        actor: 'система',
+      },
+    ]);
+
+    render();
+
+    const history = (await screen.findByText('История изменений')).closest('section')!;
+    // Отдельного события назначения в этом случае нет — курьер виден только здесь.
+    expect(within(history).getByText(/курьер Иван Соколов/)).toBeInTheDocument();
+  });
+});

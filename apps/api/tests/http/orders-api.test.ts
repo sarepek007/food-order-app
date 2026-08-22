@@ -219,6 +219,41 @@ describe('POST /orders', () => {
     expect(paths).toEqual(expect.arrayContaining(['customerName', 'restaurantId', 'totalAmount']));
   });
 
+  it('пустое тело при объявленном Content-Type равносильно отсутствию тела', async () => {
+    const created = await createOrder();
+    const courier = await insertCourier(pool, { name: 'Мария' });
+
+    await app.inject({
+      method: 'PUT',
+      url: `${BASE}/orders/${created.id}/courier`,
+      headers: { 'if-match': created.etag },
+      payload: { courierId: courier.id },
+    });
+
+    // Многие клиенты выставляют Content-Type всегда, даже когда тела нет.
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `${BASE}/orders/${created.id}/courier`,
+      headers: { 'if-match': '"2"', 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ courier: null });
+  });
+
+  it('пустое тело не спасает от обязательных полей', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: `${BASE}/orders`,
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(problemOf(response.payload).code).toBe('VALIDATION_FAILED');
+  });
+
   it('отклоняет некорректный JSON', async () => {
     const response = await app.inject({
       method: 'POST',

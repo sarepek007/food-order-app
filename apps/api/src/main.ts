@@ -9,10 +9,24 @@ import { deleteExpiredIdempotencyKeys } from './repositories/idempotency-reposit
 import { runSeed } from './seed/seed.js';
 
 const config = getConfig();
-const pool = createPoolFromConfig(config);
+
+/**
+ * Логгер приложения появляется позже пула, поэтому обработчик ошибок
+ * подменяется через ссылку: до готовности приложения пишем в консоль.
+ */
+let reportPoolError = (error: Error): void => {
+  console.error('ошибка соединения с БД', error);
+};
+
+const pool = createPoolFromConfig(config, { onError: (error) => reportPoolError(error) });
 
 const events = createOrderEvents(config);
 const app = await buildApp({ config, pool, events });
+
+reportPoolError = (error: Error): void => {
+  // Не fatal: сервис переживает перезапуск базы и сам восстановит соединения.
+  app.log.error({ err: error }, 'ошибка соединения с БД');
+};
 
 try {
   // Миграции применяются на старте: контейнер должен подниматься одной командой,

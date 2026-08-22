@@ -19,10 +19,12 @@ export interface CreatePoolOptions {
   connectionTimeoutMillis?: number;
   statementTimeoutMillis?: number;
   applicationName?: string;
+  /** Куда сообщать об ошибках простаивающих соединений. */
+  onError?: (error: Error) => void;
 }
 
 export function createPool(options: CreatePoolOptions): DbPool {
-  return new Pool({
+  const pool = new Pool({
     connectionString: options.connectionString,
     max: options.max ?? 10,
     connectionTimeoutMillis: options.connectionTimeoutMillis ?? 5_000,
@@ -31,14 +33,37 @@ export function createPool(options: CreatePoolOptions): DbPool {
     statement_timeout: options.statementTimeoutMillis ?? 10_000,
     application_name: options.applicationName ?? 'food-order-api',
   });
+
+  /**
+   * Обработчик обязателен, а не желателен.
+   *
+   * Пул сообщает об ошибке простаивающего соединения событием `error`.
+   * В Node событие `error` без слушателя — необработанное исключение,
+   * то есть перезапуск базы убивал бы весь процесс. С обработчиком сервис
+   * остаётся жив: запросы в момент обрыва падают, а /health честно
+   * отвечает 503, пока база не вернётся.
+   */
+  pool.on('error', (error) => {
+    if (options.onError) {
+      options.onError(error);
+      return;
+    }
+    console.error('ошибка соединения с БД', error);
+  });
+
+  return pool;
 }
 
-export function createPoolFromConfig(config: AppConfig, connectionString?: string): DbPool {
+export function createPoolFromConfig(
+  config: AppConfig,
+  options: { connectionString?: string; onError?: (error: Error) => void } = {},
+): DbPool {
   return createPool({
-    connectionString: connectionString ?? config.DATABASE_URL,
+    connectionString: options.connectionString ?? config.DATABASE_URL,
     max: config.DB_POOL_MAX,
     connectionTimeoutMillis: config.DB_CONNECTION_TIMEOUT_MS,
     statementTimeoutMillis: config.DB_STATEMENT_TIMEOUT_MS,
+    ...(options.onError ? { onError: options.onError } : {}),
   });
 }
 

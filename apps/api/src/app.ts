@@ -44,6 +44,37 @@ export async function buildApp({ config, pool, events }: BuildAppOptions): Promi
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  /**
+   * Пустое тело при объявленном Content-Type — это отсутствие тела.
+   *
+   * Разбор по умолчанию отвергает такой запрос с «Body cannot be empty»,
+   * хотя `DELETE /orders/:id/courier` тела и не требует. Многие HTTP-клиенты
+   * выставляют Content-Type всегда, и получать за это 400 они не должны.
+   */
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_request, body, done) => {
+      const raw = typeof body === 'string' ? body.trim() : '';
+
+      if (raw === '') {
+        done(null, undefined);
+        return;
+      }
+
+      try {
+        done(null, JSON.parse(raw));
+      } catch {
+        // Некорректный JSON остаётся ошибкой запроса, а не сбоем сервера.
+        const error = new Error('Тело запроса не является корректным JSON') as Error & {
+          statusCode: number;
+        };
+        error.statusCode = 400;
+        done(error, undefined);
+      }
+    },
+  );
+
   registerErrorHandler(app);
   registerActorContext(app);
 
