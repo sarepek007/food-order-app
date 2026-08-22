@@ -56,9 +56,8 @@ jobs:
       - name: Установить браузер для e2e
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Данные для e2e
-        run: pnpm --filter @food/api seed
-
+      # Базу для e2e готовит globalSetup: создаёт её, применяет миграции
+      # и загружает данные — отдельного шага не нужно.
       - run: pnpm test:e2e
 
       - uses: actions/upload-artifact@v4

@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
@@ -9,10 +10,17 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   server: {
-    port: 5173,
+    // PORT позволяет внешнему запускающему процессу назначить порт;
+    // 5173 остаётся значением по умолчанию для ручного запуска.
+    port: Number(process.env['PORT'] ?? 5173),
     // Прокси убирает CORS из разработки: фронт и API живут на одном origin.
+    // Адрес настраивается, потому что e2e поднимают собственный экземпляр API
+    // поверх изолированной базы.
     proxy: {
-      '/api': { target: 'http://localhost:3000', changeOrigin: true },
+      '/api': {
+        target: process.env['API_PROXY_TARGET'] ?? 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
   test: {

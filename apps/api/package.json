@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "test:coverage": "vitest run --coverage",
-    "load:courier": "tsx scripts/load-courier-limit.ts"
+    "load:courier": "tsx scripts/load-courier-limit.ts",
+    "prepare:e2e-db": "tsx scripts/prepare-e2e-db.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

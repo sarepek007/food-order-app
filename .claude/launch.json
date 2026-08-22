@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@food/api", "dev"],
+      "port": 3000,
+      "autoPort": false
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@food/web", "dev"],
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "docker-stack",
+      "url": "http://localhost:8080"
+    }
+  ]
+}

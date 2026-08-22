@@ -1,13 +1,25 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * E2E проходят по живому стеку. По умолчанию поднимаются dev-серверы,
- * но можно указать уже работающий адрес: E2E_BASE_URL=http://localhost:8080
- * (например, стек из docker compose).
+ * E2E проходят по живому стеку.
+ *
+ * По умолчанию поднимается **изолированная** пара серверов на собственных
+ * портах и собственной базе: сценарии создают и меняют заказы, и делать это
+ * в базе демонстрационного стенда нельзя — иначе после каждого прогона
+ * в списке остаются заказы вида «E2E Клиент 1787393113620».
+ *
+ * Против уже работающего стека (например, docker compose):
+ *   E2E_BASE_URL=http://localhost:8080 E2E_API_URL=http://localhost:8080 pnpm test:e2e
+ * В этом режиме изоляции нет — проверяется реальное развёртывание.
  */
-const BASE_URL = process.env['E2E_BASE_URL'] ?? 'http://localhost:5173';
-const API_URL = process.env['E2E_API_URL'] ?? 'http://localhost:3000';
-const useExternalStack = Boolean(process.env['E2E_BASE_URL']);
+const E2E_API_PORT = 3100;
+const E2E_WEB_PORT = 5174;
+const E2E_DATABASE_URL =
+  process.env['E2E_DATABASE_URL'] ?? 'postgres://food:food@localhost:5432/food_orders_e2e';
+
+const externalBaseUrl = process.env['E2E_BASE_URL'];
+const baseURL = externalBaseUrl ?? `http://localhost:${E2E_WEB_PORT}`;
+const apiUrl = process.env['E2E_API_URL'] ?? `http://localhost:${E2E_API_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -20,7 +32,7 @@ export default defineConfig({
   reporter: process.env['CI'] ? [['list'], ['html', { open: 'never' }]] : 'list',
 
   use: {
-    baseURL: BASE_URL,
+    baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     locale: 'ru-RU',
@@ -28,21 +40,33 @@ export default defineConfig({
 
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 
-  ...(useExternalStack
+  ...(externalBaseUrl
     ? {}
     : {
+        // Готовит изолированную базу: создаёт её при необходимости,
+        // применяет миграции и загружает воспроизводимые данные.
+        globalSetup: './e2e/global-setup.ts',
         webServer: [
           {
             command: 'pnpm --filter @food/api dev',
-            url: `${API_URL}/api/v1/health`,
-            reuseExistingServer: true,
+            url: `${apiUrl}/api/v1/health`,
+            reuseExistingServer: false,
             timeout: 60_000,
+            env: {
+              DATABASE_URL: E2E_DATABASE_URL,
+              PORT: String(E2E_API_PORT),
+              LOG_LEVEL: 'warn',
+            },
           },
           {
             command: 'pnpm --filter @food/web dev',
-            url: BASE_URL,
-            reuseExistingServer: true,
+            url: baseURL,
+            reuseExistingServer: false,
             timeout: 60_000,
+            env: {
+              PORT: String(E2E_WEB_PORT),
+              API_PROXY_TARGET: apiUrl,
+            },
           },
         ],
       }),
