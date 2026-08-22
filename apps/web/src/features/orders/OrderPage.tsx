@@ -230,6 +230,12 @@ export function OrderPage() {
               Данные заказа
             </h2>
             <dl className="grid grid-cols-1 gap-y-2.5 text-sm sm:grid-cols-[9.5rem_1fr] sm:gap-y-2">
+              {/* Технический идентификатор: в списке показывается короткий
+                  человекочитаемый номер, а полный UUID нужен для обращений
+                  в поддержку и для поиска в логах. */}
+              <dt className="text-muted">Идентификатор</dt>
+              <dd className="font-mono text-xs break-all text-ink-soft select-all">{order.id}</dd>
+
               <dt className="text-muted">Клиент</dt>
               <dd>
                 {order.customerName}

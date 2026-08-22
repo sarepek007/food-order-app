@@ -49,7 +49,7 @@ describe('загрузка карточки', () => {
   });
 
   it('показывает все требуемые поля заказа', async () => {
-    serveOrder(
+    const order = serveOrder(
       makeOrder({
         status: 'preparing',
         courier: { id: COURIER_FREE.id, name: COURIER_FREE.name },
@@ -69,6 +69,8 @@ describe('загрузка карточки', () => {
     expect(screen.getByText('Ленинский проспект, д. 12')).toBeInTheDocument();
     expect(screen.getByText(/1\s?290,50/)).toBeInTheDocument();
     expect(screen.getByText('версия 4')).toBeInTheDocument();
+    // Технический идентификатор доступен оператору для обращений в поддержку.
+    expect(screen.getByText(order.id)).toBeInTheDocument();
   });
 
   it('показывает журнал изменений', async () => {

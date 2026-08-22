@@ -99,6 +99,9 @@ export function OrdersTable({ items, filters, onSort, children }: OrdersTablePro
                   to={`/orders/${order.id}`}
                   className="tabular font-semibold text-accent hover:underline"
                   aria-label={`Открыть заказ №${order.publicNumber}`}
+                  /* Полный идентификатор доступен по наведению: отдельная
+                     колонка с UUID сделала бы таблицу на 200 строк нечитаемой. */
+                  title={order.id}
                 >
                   {order.publicNumber}
                 </Link>
