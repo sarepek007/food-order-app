@@ -33,6 +33,15 @@ const envSchema = z.object({
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 
   COURIER_ACTIVE_LIMIT: z.coerce.number().int().positive().default(DEFAULT_COURIER_ACTIVE_LIMIT),
+  /**
+   * Загрузить демонстрационные данные, если таблица заказов пуста.
+   * По умолчанию выключено: в бою приложение не должно наполнять базу само.
+   * Включается в docker-compose, чтобы стенд поднимался одной командой.
+   */
+  SEED_ON_EMPTY: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   STATUS_SLA_SECONDS: z
     .string()
     .optional()

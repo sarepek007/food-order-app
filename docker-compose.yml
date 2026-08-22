@@ -1,19 +1,25 @@
+# Полный стенд одной командой:
+#   docker compose up -d --build
+#
+# Порты и параметры переопределяются через .env — см. .env.example.
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: food-order-postgres
     environment:
-      POSTGRES_USER: food
-      POSTGRES_PASSWORD: food
-      POSTGRES_DB: food_orders
+      POSTGRES_USER: ${POSTGRES_USER:-food}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-food}
+      POSTGRES_DB: ${POSTGRES_DB:-food_orders}
       POSTGRES_INITDB_ARGS: '--data-checksums'
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Заводит отдельные базы для интеграционных тестов и e2e.
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U food -d food_orders']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-food} -d ${POSTGRES_DB:-food_orders}']
       interval: 3s
       timeout: 3s
       retries: 20
@@ -26,14 +32,17 @@ services:
     container_name: food-order-api
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://food:food@postgres:5432/food_orders
+      DATABASE_URL: postgres://${POSTGRES_USER:-food}:${POSTGRES_PASSWORD:-food}@postgres:5432/${POSTGRES_DB:-food_orders}
       PORT: 3000
-      LOG_LEVEL: info
-      COURIER_ACTIVE_LIMIT: 3
-      SEARCH_SIMILARITY_THRESHOLD: 0.5
-      CORS_ORIGIN: http://localhost:8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      COURIER_ACTIVE_LIMIT: ${COURIER_ACTIVE_LIMIT:-3}
+      SEARCH_SIMILARITY_THRESHOLD: ${SEARCH_SIMILARITY_THRESHOLD:-0.5}
+      CORS_ORIGIN: http://localhost:${WEB_PORT:-8080}
+      # Стенд должен подниматься одной командой: если база пуста,
+      # приложение само загрузит демонстрационный набор.
+      SEED_ON_EMPTY: 'true'
     ports:
-      - '3000:3000'
+      - '${API_PORT:-3000}:3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,30 +54,13 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # Одноразовая загрузка демонстрационных данных.
-  # Запускается явно: `docker compose run --rm seed`.
-  seed:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    container_name: food-order-seed
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgres://food:food@postgres:5432/food_orders
-      COURIER_ACTIVE_LIMIT: 3
-    depends_on:
-      postgres:
-        condition: service_healthy
-    profiles: ['tools']
-    command: ['node', 'dist/seed/seed-cli.js']
-
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     container_name: food-order-web
     ports:
-      - '8080:80'
+      - '${WEB_PORT:-8080}:80'
     depends_on:
       api:
         condition: service_healthy
@@ -80,6 +72,25 @@ services:
       retries: 5
       start_period: 5s
     restart: unless-stopped
+
+  # Пересоздание демонстрационных данных поверх существующих.
+  # При первом запуске не нужен: пустую базу наполняет сам api
+  # (SEED_ON_EMPTY). Нужен, чтобы вернуть стенд в исходное состояние:
+  #   docker compose run --rm seed
+  seed:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: food-order-seed
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-food}:${POSTGRES_PASSWORD:-food}@postgres:5432/${POSTGRES_DB:-food_orders}
+      COURIER_ACTIVE_LIMIT: ${COURIER_ACTIVE_LIMIT:-3}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ['tools']
+    command: ['node', 'dist/seed/seed-cli.js']
 
 volumes:
   postgres-data:

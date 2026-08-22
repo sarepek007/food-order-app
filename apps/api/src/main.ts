@@ -6,6 +6,7 @@ import { runMigrations } from './db/migrate.js';
 import { createPoolFromConfig } from './db/pool.js';
 import { createOrderEvents } from './realtime/order-events.js';
 import { deleteExpiredIdempotencyKeys } from './repositories/idempotency-repository.js';
+import { runSeed } from './seed/seed.js';
 
 const config = getConfig();
 const pool = createPoolFromConfig(config);
@@ -19,6 +20,10 @@ try {
   const result = await runMigrations(pool, { log: (message) => app.log.info(message) });
   app.log.info({ applied: result.applied.length, skipped: result.skipped.length }, 'миграции проверены');
 
+  if (config.SEED_ON_EMPTY) {
+    await seedIfEmpty();
+  }
+
   // Подписка поднимается до приёма запросов: клиент, подключившийся сразу,
   // не должен получить поток без источника событий.
   await events.start();
@@ -29,6 +34,48 @@ try {
   await events.stop().catch(() => undefined);
   await pool.end().catch(() => undefined);
   process.exit(1);
+}
+
+/**
+ * Загружает демонстрационные данные, если база пуста.
+ *
+ * Лок сессионный, а не транзакционный: runSeed открывает собственную
+ * транзакцию на другом соединении, и транзакционный лок её не накрыл бы.
+ * Тот же приём, что в раннере миграций.
+ */
+async function seedIfEmpty(): Promise<void> {
+  const SEED_LOCK_KEY = 8_421_775_093;
+  const client = await pool.connect();
+
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [SEED_LOCK_KEY]);
+
+    // Проверяются все три таблицы: наполнять базу, где уже есть справочники,
+    // нельзя — seed вставляет записи с фиксированными идентификаторами.
+    const { rows } = await client.query<{ total: string }>(
+      `SELECT (SELECT count(*) FROM orders)
+            + (SELECT count(*) FROM restaurants)
+            + (SELECT count(*) FROM couriers) AS total`,
+    );
+
+    if (Number(rows[0]?.total ?? 0) > 0) {
+      app.log.info('данные уже есть, загрузка демонстрационного набора пропущена');
+      return;
+    }
+
+    app.log.info('база пуста — загружаем демонстрационные данные');
+    const summary = await runSeed(pool, {
+      reset: false,
+      courierActiveLimit: config.COURIER_ACTIVE_LIMIT,
+    });
+    app.log.info(
+      { restaurants: summary.restaurants, couriers: summary.couriers, orders: summary.orders },
+      'демонстрационные данные загружены',
+    );
+  } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [SEED_LOCK_KEY]).catch(() => undefined);
+    client.release();
+  }
 }
 
 /**

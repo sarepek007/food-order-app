@@ -14,11 +14,28 @@ Fullstack-приложение для операционной команды д
 
 ```bash
 docker compose up -d --build
-docker compose run --rm seed
 ```
+
+Всё. Одна команда поднимает Postgres, API и веб-сервер: миграции применяются
+на старте, а пустая база наполняется демонстрационным набором
+(20 ресторанов, 20 курьеров, 200 заказов).
 
 Интерфейс — <http://localhost:8080>, API — <http://localhost:3000>,
 документация API — <http://localhost:3000/docs>.
+
+| Команда | Что делает |
+|---------|------------|
+| `docker compose up -d --build` | собрать и поднять стенд |
+| `docker compose run --rm seed` | вернуть данные в исходное состояние |
+| `docker compose logs -f api` | смотреть логи API |
+| `docker compose down` | остановить |
+| `docker compose down -v` | остановить и удалить данные |
+
+Порты и параметры переопределяются через `.env` — см. [.env.example](.env.example):
+
+```bash
+echo "WEB_PORT=9090" > .env && docker compose up -d
+```
 
 ### Разработка
 
