@@ -263,6 +263,7 @@ E2E_BASE_URL=http://localhost:8080 E2E_API_URL=http://localhost:8080 pnpm test:e
 
 | Документ | О чём |
 |----------|-------|
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | карта: требование ТЗ → код → чем подтверждено |
 | [docs/API.md](docs/API.md) | эндпоинты, заголовки, коды ошибок, типовой поток |
 | [docs/DATABASE.md](docs/DATABASE.md) | схема, индексы, инварианты, миграции |
 | [docs/PLAN.md](docs/PLAN.md) | ход работ по майлстоунам и найденные дефекты |
